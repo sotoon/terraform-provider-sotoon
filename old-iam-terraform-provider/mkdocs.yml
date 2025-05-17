@@ -1,0 +1,44 @@
+site_name: Sotoon Terraform Provider (Alpha)
+theme: readthedocs
+
+nav:
+  - Home: index.md
+  - Terraform: terraform.md
+  - Provider: provider.md
+  - Data Sources:
+    - General Data Sources:
+      - sotoon_service: data-sources/service.md
+      - sotoon_workspace: data-sources/workspace.md
+    - IAM:
+      - sotoon_iam_user: data-sources/iam_user.md
+      - sotoon_iam_users: data-sources/iam_users.md
+      - sotoon_iam_service_user: data-sources/iam_service_user.md
+      - sotoon_iam_service_users: data-sources/iam_service_users.md
+      - sotoon_iam_group: data-sources/iam_group.md
+      - sotoon_iam_rule: data-sources/iam_rule.md
+      - sotoon_iam_role: data-sources/iam_role.md
+  - Resources:
+    - IAM:
+      - sotoon_iam_group: resources/iam_group.md
+      - sotoon_iam_user_group_binding: resources/iam_user_group_binding.md
+      - sotoon_iam_service_user_group_binding: resources/iam_service_user_group_binding.md
+      - sotoon_iam_rule: resources/iam_rule.md
+      - sotoon_iam_role: resources/iam_role.md
+      - sotoon_iam_role_user_binding: resources/iam_role_user_binding.md
+      - sotoon_iam_role_service_user_binding: resources/iam_role_service_user_binding.md
+      - sotoon_iam_role_group_binding: resources/iam_role_group_binding.md
+
+use_directory_urls: false
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+
+plugins:
+  - search:
+      prebuild_index: true

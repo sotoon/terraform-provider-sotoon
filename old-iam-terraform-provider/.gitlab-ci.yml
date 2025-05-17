@@ -1,0 +1,47 @@
+stages:
+  - test
+  - release
+
+Unit Tests:
+  stage: test
+  image: registry.cafebazaar.ir:5000/infrastructure/kraken/common-images/terraform-go:1.4.6-go1.19.4
+  script:
+    - make test
+
+Documents Lint:
+  stage: test
+  image: registry.cafebazaar.ir:5000/infrastructure/kraken/common-images/terraform-go:1.4.6-go1.19.4
+  script:
+    - make doclint
+
+Deploy Documents:
+  stage: release
+  needs:
+    - Documents Lint
+  image: registry.cafebazaar.ir:5000/infrastructure/kraken/common-images/aws-base:latest
+  script:
+    - make deploy-docs
+  when: manual
+
+# These variables must be defined in this stage:
+# - GPG_PRIVATE_KEY_FILE
+# - GPG_KEY_ID
+# - AWS_ACCESS_KEY_ID
+# - AWS_SECRET_ACCESS_KEY
+Push to Registry:
+  stage: release
+  needs:
+    - Unit Tests
+  image: 
+    name: registry.cafebazaar.ir:5000/infrastructure/integration/sib/terraform-registry/pusher:v0.11.0-v1.20.0-0.0.3
+    entrypoint: ['']
+  variables:
+    GIT_DEPTH: 0
+    GARBLE_PATH: garble
+  script:
+    - gpg --import $GPG_PRIVATE_KEY_FILE
+    - make release
+    - make push-provider
+  when: manual
+  only:
+    - tags

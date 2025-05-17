@@ -1,0 +1,15 @@
+# Binaries
+terraform-provider-sotoon
+
+# Terraform Created Files
+*.tfstate
+*.tfstate.backup
+.terraform
+*.hcl
+
+# Test Outputs
+cover.out*
+
+tests
+dist/
+build/

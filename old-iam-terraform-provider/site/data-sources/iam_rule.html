@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <link rel="shortcut icon" href="../img/favicon.ico" />
+    <title>sotoon_iam_rule - Sotoon Terraform Provider (Alpha)</title>
+    <link rel="stylesheet" href="../css/theme.css" />
+    <link rel="stylesheet" href="../css/theme_extra.css" />
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/styles/github.min.css" />
+    
+      <script>
+        // Current page data
+        var mkdocs_page_name = "sotoon_iam_rule";
+        var mkdocs_page_input_path = "data-sources/iam_rule.md";
+        var mkdocs_page_url = null;
+      </script>
+    
+    <script src="../js/jquery-3.6.0.min.js" defer></script>
+    <!--[if lt IE 9]>
+      <script src="../js/html5shiv.min.js"></script>
+    <![endif]-->
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/10.5.0/highlight.min.js"></script>
+      <script>hljs.initHighlightingOnLoad();</script> 
+</head>
+
+<body class="wy-body-for-nav" role="document">
+
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side stickynav">
+    <div class="wy-side-scroll">
+      <div class="wy-side-nav-search">
+          <a href="../index.html" class="icon icon-home"> Sotoon Terraform Provider (Alpha)
+        </a><div role="search">
+  <form id ="rtd-search-form" class="wy-form" action="../search.html" method="get">
+      <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" title="Type search term here" />
+  </form>
+</div>
+      </div>
+
+      <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../index.html">Home</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../terraform.html">Terraform</a>
+                </li>
+              </ul>
+              <ul>
+                <li class="toctree-l1"><a class="reference internal" href="../provider.html">Provider</a>
+                </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Data Sources</span></p>
+              <ul class="current">
+                  <li class="toctree-l1"><a class="reference internal" href="#">General Data Sources</a>
+    <ul>
+                <li class="toctree-l2"><a class="reference internal" href="service.html">sotoon_service</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="workspace.html">sotoon_workspace</a>
+                </li>
+    </ul>
+                  </li>
+                  <li class="toctree-l1 current"><a class="reference internal current" href="#">IAM</a>
+    <ul class="current">
+                <li class="toctree-l2"><a class="reference internal" href="iam_user.html">sotoon_iam_user</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="iam_users.html">sotoon_iam_users</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="iam_service_user.html">sotoon_iam_service_user</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="iam_service_users.html">sotoon_iam_service_users</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="iam_group.html">sotoon_iam_group</a>
+                </li>
+                <li class="toctree-l2 current"><a class="reference internal current" href="iam_rule.html">sotoon_iam_rule</a>
+    <ul class="current">
+    <li class="toctree-l3"><a class="reference internal" href="#example-usage">Example Usage</a>
+    </li>
+    <li class="toctree-l3"><a class="reference internal" href="#schema">Schema</a>
+        <ul>
+    <li class="toctree-l4"><a class="reference internal" href="#required">Required</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#optional">Optional</a>
+    </li>
+    <li class="toctree-l4"><a class="reference internal" href="#read-only">Read-Only</a>
+    </li>
+        </ul>
+    </li>
+    </ul>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="iam_role.html">sotoon_iam_role</a>
+                </li>
+    </ul>
+                  </li>
+              </ul>
+              <p class="caption"><span class="caption-text">Resources</span></p>
+              <ul>
+                  <li class="toctree-l1"><a class="reference internal" href="#">IAM</a>
+    <ul>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_group.html">sotoon_iam_group</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_user_group_binding.html">sotoon_iam_user_group_binding</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_service_user_group_binding.html">sotoon_iam_service_user_group_binding</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_rule.html">sotoon_iam_rule</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_role.html">sotoon_iam_role</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_role_user_binding.html">sotoon_iam_role_user_binding</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_role_service_user_binding.html">sotoon_iam_role_service_user_binding</a>
+                </li>
+                <li class="toctree-l2"><a class="reference internal" href="../resources/iam_role_group_binding.html">sotoon_iam_role_group_binding</a>
+                </li>
+    </ul>
+                  </li>
+              </ul>
+      </div>
+    </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      <nav class="wy-nav-top" role="navigation" aria-label="Mobile navigation menu">
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">Sotoon Terraform Provider (Alpha)</a>
+        
+      </nav>
+      <div class="wy-nav-content">
+        <div class="rst-content"><div role="navigation" aria-label="breadcrumbs navigation">
+  <ul class="wy-breadcrumbs">
+    <li><a href="../index.html" class="icon icon-home" aria-label="Docs"></a> &raquo;</li>
+          <li>Data Sources &raquo;</li>
+          <li>IAM &raquo;</li>
+      <li>sotoon_iam_rule</li>
+    <li class="wy-breadcrumbs-aside">
+    </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+            <div class="section" itemprop="articleBody">
+              
+                <h1 id="sotoon_iam_rule-data-source">sotoon_iam_rule (Data Source)</h1>
+<p>Retrieves a IAM rule.</p>
+<h2 id="example-usage">Example Usage</h2>
+<div class="language-terraform highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kr">data</span><span class="w"> </span><span class="nc">&quot;sotoon_workspace&quot;</span><span class="w"> </span><span class="nv">&quot;mycompany&quot;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="na">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ee6f89b5-e07c-42f1-9462-05cec9cd92d8&quot;</span><span class="c1"> # Workspace ID</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="p">}</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Get globally predefined workspace-admin role </span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kr">data</span><span class="w"> </span><span class="nc">&quot;sotoon_iam_rule&quot;</span><span class="w"> </span><span class="nv">&quot;can_edit_cdn&quot;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">  </span><span class="na">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;can-edit-cdn&quot;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="c1"># Get user defined custom role</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="kr">data</span><span class="w"> </span><span class="nc">&quot;sotoon_iam_rule&quot;</span><span class="w"> </span><span class="nv">&quot;reader&quot;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">  </span><span class="na">name</span><span class="w">         </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;can-read&quot;</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">  </span><span class="na">workspace_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nv">data.sotoon_workspace.mycompany.id</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">}</span>
+</span></code></pre></div>
+<!-- schema generated by tfplugindocs -->
+<h2 id="schema">Schema</h2>
+<h3 id="required">Required</h3>
+<ul>
+<li><code>name</code> (String) Name of the rule.</li>
+</ul>
+<h3 id="optional">Optional</h3>
+<ul>
+<li><code>workspace_id</code> (String) ID of the Workspace which this rule is defined in that. (Default: global rules)</li>
+</ul>
+<h3 id="read-only">Read-Only</h3>
+<ul>
+<li><code>actions</code> (List of String) List of the actions which this rule applied on that.</li>
+<li><code>id</code> (String) ID of the rule.</li>
+<li><code>is_denial</code> (Boolean) Defines is this rule denial or not.</li>
+<li><code>path</code> (String) The path which the rule applied on that</li>
+<li><code>service</code> (String) Service which this rule defined on that.</li>
+</ul>
+              
+            </div>
+          </div><footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="Footer Navigation">
+        <a href="iam_group.html" class="btn btn-neutral float-left" title="sotoon_iam_group"><span class="icon icon-circle-arrow-left"></span> Previous</a>
+        <a href="iam_role.html" class="btn btn-neutral float-right" title="sotoon_iam_role">Next <span class="icon icon-circle-arrow-right"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <!-- Copyright etc -->
+  </div>
+
+  Built with <a href="https://www.mkdocs.org/">MkDocs</a> using a <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>.
+</footer>
+          
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+
+  <div class="rst-versions" role="note" aria-label="Versions">
+  <span class="rst-current-version" data-toggle="rst-current-version">
+    
+    
+      <span><a href="iam_group.html" style="color: #fcfcfc">&laquo; Previous</a></span>
+    
+    
+      <span><a href="iam_role.html" style="color: #fcfcfc">Next &raquo;</a></span>
+    
+  </span>
+</div>
+    <script>var base_url = '..';</script>
+    <script src="../js/theme_extra.js" defer></script>
+    <script src="../js/theme.js" defer></script>
+      <script src="../search/main.js" defer></script>
+    <script defer>
+        window.onload = function () {
+            SphinxRtdTheme.Navigation.enable(true);
+        };
+    </script>
+
+</body>
+</html>
