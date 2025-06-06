@@ -1,0 +1,7 @@
+# Import ID for this resource is "<role-id>:<service-user-id>:<workspace-id>".
+# Replace <role-id>, <service-user-id> and <workspace-id> with real values
+terraform import sotoon_iam_role_service_user_binding.mydeployer_is_compute_viewer "<role-id>:<service-user-id>:<workspace-id>"
+
+# For example:
+terraform import sotoon_iam_role_service_user_binding.mydeployer_is_compute_viewer \
+    "b8c133a4-a060-4906-8654-57988dbdf098:34f57a2f-6e4d-4ded-9025-ff00911d3313:ee6f89b5-e07c-42f1-9462-05cec9cd92d8"
