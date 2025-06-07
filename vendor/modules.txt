@@ -1,8 +1,8 @@
-# git.cafebazaar.ir/infrastructure/bepa-client v1.0.36
+# https://github.com/sotoon/iam-client
 ## explicit; go 1.19
-git.cafebazaar.ir/infrastructure/bepa-client/pkg/client
-git.cafebazaar.ir/infrastructure/bepa-client/pkg/routes
-git.cafebazaar.ir/infrastructure/bepa-client/pkg/types
+https://github.com/sotoon/iam-client/pkg/client
+https://github.com/sotoon/iam-client/pkg/routes
+https://github.com/sotoon/iam-client/pkg/types
 # github.com/Masterminds/goutils v1.1.1
 ## explicit
 github.com/Masterminds/goutils
