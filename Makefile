@@ -1,55 +1,47 @@
-NAME=sotoon
-BINARY=terraform-provider-$(NAME)
-BINARY_PATH=~/go/bin
-LATEST_VERSION=$(shell cat ./VERSION)
+PROVIDER_SOURCE := sotoon/sotoon
+PROVIDER_BINARY_NAME := terraform-provider-sotoon
+INSTALL_DIR := $(shell go env GOPATH)/bin
+OS_ARCH := $(shell go env GOOS)_$(shell go env GOARCH)
 
-.PHONY: build
+
+.PHONY: all build install configure-tf-rc clean help refresh
+
+all: build install
+
+# Build the provider binary
 build:
-	mkdir -p $(BINARY_PATH)
-	go mod tidy
-	go build -o $(BINARY_PATH)/$(BINARY)
-	
-.PHONY: safebuild
-safebuild:
-	go install mvdan.cc/garble@latest
-	$(BINARY_PATH)/garble -tiny -literals build -o $(BINARY_PATH)/$(BINARY)
+	@echo "--> Building $(PROVIDER_BINARY_NAME)..."
+	go build -o $(PROVIDER_BINARY_NAME)
 
-.PHONY: test
-test:
-	TF_ACC=1 go test -mod=vendor -v ./... -count=1 -coverprofile cover.out
-	go tool cover -func=cover.out
-	
-.PHONY: coverage-serve
-coverage-serve:
-	go tool cover -html=cover.out
+# Install the built provider binary to the specified INSTALL_DIR
+install: build
+	@echo "--> Installing $(PROVIDER_BINARY_NAME) to $(INSTALL_DIR)..."
+	@mkdir -p $(INSTALL_DIR)
+	@mv $(PROVIDER_BINARY_NAME) $(INSTALL_DIR)/
+	@chmod +x $(INSTALL_DIR)/$(PROVIDER_BINARY_NAME)
+	@echo "    Installed: $(INSTALL_DIR)/$(PROVIDER_BINARY_NAME)"
 
-.PHONY: docs
-docs:
-	go generate ./...
-	sed -i 's/SOTOON_TERRAFORM_PROVIDER_REGISTRY/$(LATEST_VERSION)/' ./docs/*.md
-	sed -i 's/# sotoon Provider/# Sotoon Provider/' ./docs/*.md
-	sed -i 's/page_title: "sotoon Provider"/page_title: "Sotoon Provider"/' ./docs/*.md
-	mv ./docs/index.md ./docs/provider.md
-	mv ./docs/home.md ./docs/index.md
-	mkdocs build
+# NEW: Clean and rebuild the provider
+refresh: clean install
+	@echo "--> Provider refreshed successfully."
 
-.PHONY: deploy-docs
-deploy-docs:
-	aws s3 --endpoint-url=https://s3.thr1.sotoon.ir rm s3://terraform-docs/ --recursive
-	aws s3 --endpoint-url=https://s3.thr1.sotoon.ir sync ./site/ s3://terraform-docs/
+# Clean up compiled binary and optionally the installed one
+clean:
+	@echo "--> Cleaning up..."
+	@rm -f $(PROVIDER_BINARY_NAME) # Removes the binary from the build directory
+	@if [ -f "$(INSTALL_DIR)/$(PROVIDER_BINARY_NAME)" ]; then \
+	  echo "    Removing installed binary from $(INSTALL_DIR)..."; \
+	  rm $(INSTALL_DIR)/$(PROVIDER_BINARY_NAME); \
+	else \
+	  echo "    Installed binary not found at $(INSTALL_DIR), skipping removal."; \
+	fi
+	@echo "    Remember to manually clean up your .terraformrc if needed."
 
-.PHONY: doclint
-doclint:
-	terraform fmt -check -recursive ./examples
-
-.PHONY: fixdoclint
-fixdoclint:
-	terraform fmt -recursive ./examples
-
-.PHONY: release
-release:
-	goreleaser release --clean
-
-.PHONY: push-provider
-push-provider:
-	bash scripts/registry-push.bash
+help:
+	@echo "Usage:"
+	@echo "  make refresh            - Cleans, rebuilds, and installs the provider"
+	@echo "  make all                - Builds, installs, and configures .terraformrc"
+	@echo "  make build              - Only builds the provider binary"
+	@echo "  make install            - Installs the built provider to $(INSTALL_DIR)"
+	@echo "  make clean              - Removes compiled binary from current dir and $(INSTALL_DIR)"
+	@echo "  make help               - Displays this help message"
