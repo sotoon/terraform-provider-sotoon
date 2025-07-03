@@ -42,7 +42,7 @@ You can configure Terraform manually. Create or edit the Terraform CLI configura
 ```shell
 provider_installation {
   dev_overrides {
-    "hashicorp/sotoon" = "/Users/moein/go/bin"
+    "sotoon/sotoon" = "/Users/moein/go/bin"
   }
   direct {}
 }
