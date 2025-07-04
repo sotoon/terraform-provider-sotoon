@@ -1,6 +1,6 @@
 terraform {
   required_providers {
-    compute = {
+    sotoon = {
       source  = "sotoon/sotoon"
       version = "1.0.0"
     }
