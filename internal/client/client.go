@@ -1,23 +1,27 @@
 package client
 
 import (
-    "bytes"
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
-    "time"
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+	"errors"
+	uuid "github.com/satori/go.uuid"
+	iamclient "github.com/sotoon/iam-client/pkg/client"
+	"github.com/sotoon/iam-client/pkg/types"
 )
 
-// API response structs
-type ObjectMetadata struct {
-    UID       string `json:"uid,omitempty"`
-    Name      string `json:"name"`
-    Workspace string `json:"workspace"`
-}
+var ErrNotFound = errors.New("resource not found")
 
-type ExternalIPSpec struct {
-    Reserved bool `json:"reserved"`
+// API response structs
+
+type ObjectMetadata struct {
+	UID       string `json:"uid,omitempty"`
+	Name      string `json:"name"`
+	Workspace string `json:"workspace"`
 }
 
 type ExternalIP struct {
@@ -31,155 +35,101 @@ type ExternalIP struct {
 			Kind string `json:"kind"`
 			Name string `json:"name"`
 		} `json:"boundTo"`
-		IP       string `json:"ip"`
+		IP string `json:"ip"`
 	} `json:"spec"`
 }
 
-type LinkSpec struct {
-    ExternalIPRef struct {
-        Name string `json:"name"`
-    } `json:"externalIPRef"`
-    SubnetName string `json:"subnetName"`
-    VPCName    string `json:"vpcName"`
-}
-
-type Link struct {
-    Metadata ObjectMetadata `json:"metadata"`
-    Spec     LinkSpec       `json:"spec"`
-}
-
 type InstanceSpec struct {
-    IAMEnabled  bool `json:"iamEnabled"`
-    ImageSource struct {
-        Image string `json:"image"`
-    } `json:"imageSource"`
-    Interfaces []struct {
-        Link string `json:"link"`
-        Name string `json:"name"`
-    } `json:"interfaces"`
-    PoweredOn bool   `json:"poweredOn"`
-    Type      string `json:"type"`
+	IAMEnabled  bool `json:"iamEnabled"`
+	ImageSource struct {
+		Image string `json:"image"`
+	} `json:"imageSource"`
+	Interfaces []struct {
+		Link string `json:"link"`
+		Name string `json:"name"`
+	} `json:"interfaces"`
+	PoweredOn bool   `json:"poweredOn"`
+	Type      string `json:"type"`
 }
 
 type Instance struct {
-    Metadata ObjectMetadata `json:"metadata"`
-    Spec     InstanceSpec   `json:"spec"`
+	Metadata ObjectMetadata `json:"metadata"`
+	Spec     InstanceSpec   `json:"spec"`
 }
 
-// Image data source struct
-type Image struct {
-    Name        string `json:"name"`
-    Version     string `json:"version"`
-    OsType      string `json:"osType"`
-    Description string `json:"description"`
-}
-
-// Client struct
-type Client struct {
-    BaseURL    string
-    APIToken   string
-    Workspace  string
-    HTTPClient *http.Client
-}
-
-// NewClient creates a new API client
-func NewClient(host, token, workspace string) (*Client, error) {
-    return &Client{
-        BaseURL:    fmt.Sprintf("%s/compute/v2/thr1/workspaces/%s", host, workspace),
-        APIToken:   token,
-        Workspace:  workspace,
-        HTTPClient: &http.Client{Timeout: 10 * time.Second},
-    }, nil
-}
 type InstanceList struct {
 	Items []Instance `json:"items"`
 }
 
+type Image struct {
+	Name        string `json:"name"`
+	Version     string `json:"version"`
+	OsType      string `json:"osType"`
+	Description string `json:"description"`
+}
+
+type CreateUserRequest struct {
+	Email    string
+	Name     string
+	Password string
+}
+
+// Client is a unified wrapper for both Compute and IAM APIs.
+type Client struct {
+	ComputeBaseURL string
+	APIToken       string
+	Workspace      string
+	HTTPClient     *http.Client
+	IAMClient      iamclient.Client 
+}
+
+// NewClient creates a new unified API client for both Compute and IAM.
+func NewClient(host, token, workspace string) (*Client, error) {
+	if host == "" || token == "" || workspace == "" {
+		return nil, fmt.Errorf("host, token, and workspace must not be empty")
+	}
+
+	iam, err := iamclient.NewClient(token, "http://bepa.sotoon.ir/", workspace, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
+	}
+
+	return &Client{
+		ComputeBaseURL: fmt.Sprintf("%s/compute/v2/thr1/workspaces/%s", host, workspace),
+		APIToken:       token,
+		Workspace:      workspace,
+		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
+		IAMClient:      iam,
+	}, nil
+}
+
 // Helper function to create and send requests
-func (c *Client) sendRequest(method, path string, payload interface{}) (*http.Response, error) {
-    var body io.Reader
-    if payload != nil {
-        jsonPayload, err := json.Marshal(payload)
-        if err != nil {
-            return nil, err
-        }
-        body = bytes.NewBuffer(jsonPayload)
-    }
+func (c *Client) sendComputeRequest(ctx context.Context, method, path string, payload interface{}) (*http.Response, error) {
+	var body io.Reader
+	if payload != nil {
+		jsonPayload, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		body = bytes.NewBuffer(jsonPayload)
+	}
 
-    req, err := http.NewRequest(method, c.BaseURL+path, body)
-    if err != nil {
-        return nil, err
-    }
+	req, err := http.NewRequestWithContext(ctx, method, c.ComputeBaseURL+path, body)
+	if err != nil {
+		return nil, err
+	}
 
-    req.Header.Set("Authorization", "Bearer "+c.APIToken)
-    req.Header.Set("Content-Type", "application/json")
-    req.Header.Set("Accept", "application/json")
+	req.Header.Set("Authorization", "Bearer "+c.APIToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
 
-    return c.HTTPClient.Do(req)
+	return c.HTTPClient.Do(req)
 }
 
-// CRUD for ExternalIP
-func (c *Client) CreateExternalIP(name string) (*ExternalIP, error) {
-    payload := map[string]interface{}{
-        "apiVersion": "compute/v2",
-        "kind":       "ExternalIP",
-        "metadata":   map[string]string{"name": name, "workspace": c.Workspace},
-        "spec":       map[string]bool{"reserved": true},
-    }
+// --- Compute Functions ---
 
-    resp, err := c.sendRequest(http.MethodPost, "/external-ips", payload)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-        return nil, fmt.Errorf("failed to create external IP: %s", resp.Status)
-    }
-
-    var ip ExternalIP
-    if err := json.NewDecoder(resp.Body).Decode(&ip); err != nil {
-        return nil, err
-    }
-    return &ip, nil
-}
-
-func (c *Client) GetExternalIP(name string) (*ExternalIP, error) {
-    resp, err := c.sendRequest(http.MethodGet, "/external-ips/"+name, nil)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode == http.StatusNotFound {
-        return nil, nil // Not found is not an error for Read operations
-    }
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("failed to get external IP: %s", resp.Status)
-    }
-
-    var ip ExternalIP
-    if err := json.NewDecoder(resp.Body).Decode(&ip); err != nil {
-        return nil, err
-    }
-    return &ip, nil
-}
-
-func (c *Client) DeleteExternalIP(name string) error {
-    resp, err := c.sendRequest(http.MethodDelete, "/external-ips/"+name, nil)
-    if err != nil {
-        return err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-        return fmt.Errorf("failed to delete external IP: %s", resp.Status)
-    }
-    return nil
-}
-
-// CRUD for Instance
-func (c *Client) CreateInstance(name string, spec InstanceSpec) (*Instance, error) {
+func (c *Client) CreateInstance(ctx context.Context, name string, spec InstanceSpec) (*Instance, error) {
+	// payload := map[string]interface{}{"metadata": map[string]string{"name": name}, "spec": spec}
 	payload := map[string]interface{}{
 		"apiVersion": "compute/v2",
 		"kind":       "Instance",
@@ -187,7 +137,7 @@ func (c *Client) CreateInstance(name string, spec InstanceSpec) (*Instance, erro
 		"spec":       spec,
 	}
 
-	resp, err := c.sendRequest(http.MethodPost, "/instances", payload)
+	resp, err := c.sendComputeRequest(ctx, http.MethodPost, "/instances", payload)
 	if err != nil {
 		return nil, err
 	}
@@ -205,22 +155,19 @@ func (c *Client) CreateInstance(name string, spec InstanceSpec) (*Instance, erro
 	return &instance, nil
 }
 
-// GetInstance retrieves a specific instance by its name (which is its resourceId).
-func (c *Client) GetInstance(name string) (*Instance, error) {
-	resp, err := c.sendRequest(http.MethodGet, "/instances/"+name, nil)
+func (c *Client) GetInstance(ctx context.Context, name string) (*Instance, error) {
+	resp, err := c.sendComputeRequest(ctx, http.MethodGet, "/instances/"+name, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, nil 
+		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("failed to get instance (status: %s): %s", resp.Status, string(bodyBytes))
 	}
-
 	var instance Instance
 	if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
 		return nil, err
@@ -228,25 +175,17 @@ func (c *Client) GetInstance(name string) (*Instance, error) {
 	return &instance, nil
 }
 
-// UpdateInstance updates an existing instance.
-func (c *Client) UpdateInstance(name string, spec InstanceSpec) (*Instance, error) {
-    payload := map[string]interface{}{
-		"apiVersion": "compute/v2",
-		"kind":       "Instance",
-		"metadata":   map[string]string{"name": name, "workspace": c.Workspace},
-		"spec":       spec,
-	}
-	resp, err := c.sendRequest(http.MethodPut, "/instances/"+name, payload)
+func (c *Client) UpdateInstance(ctx context.Context, name string, spec InstanceSpec) (*Instance, error) {
+	payload := map[string]interface{}{"metadata": map[string]string{"name": name}, "spec": spec}
+	resp, err := c.sendComputeRequest(ctx, http.MethodPut, "/instances/"+name, payload)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("failed to update instance (status: %s): %s", resp.Status, string(bodyBytes))
 	}
-
 	var instance Instance
 	if err := json.NewDecoder(resp.Body).Decode(&instance); err != nil {
 		return nil, err
@@ -254,15 +193,12 @@ func (c *Client) UpdateInstance(name string, spec InstanceSpec) (*Instance, erro
 	return &instance, nil
 }
 
-
-// DeleteInstance deletes a specific instance by its name.
-func (c *Client) DeleteInstance(name string) error {
-	resp, err := c.sendRequest(http.MethodDelete, "/instances/"+name, nil)
+func (c *Client) DeleteInstance(ctx context.Context, name string) error {
+	resp, err := c.sendComputeRequest(ctx, http.MethodDelete, "/instances/"+name, nil)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("failed to delete instance (status: %s): %s", resp.Status, string(bodyBytes))
@@ -270,27 +206,26 @@ func (c *Client) DeleteInstance(name string) error {
 	return nil
 }
 
-// List Images
-func (c *Client) ListImages() ([]Image, error) {
-    resp, err := c.sendRequest(http.MethodGet, "/images", nil)
-    if err != nil {
-        return nil, err
-    }
-    defer resp.Body.Close()
-
-    if resp.StatusCode != http.StatusOK {
-        return nil, fmt.Errorf("failed to list images: %s", resp.Status)
-    }
-
-    var images []Image
-    if err := json.NewDecoder(resp.Body).Decode(&images); err != nil {
-        return nil, err
-    }
-    return images, nil
+func (c *Client) ListImages(ctx context.Context) ([]Image, error) {
+	resp, err := c.sendComputeRequest(ctx, http.MethodGet, "/images", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to list images: %s", resp.Status)
+	}
+	var imageList struct {
+		Items []Image `json:"items"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&imageList); err != nil {
+		return nil, err
+	}
+	return imageList.Items, nil
 }
 
-func (c *Client) ListInstances() ([]Instance, error) {
-	resp, err := c.sendRequest(http.MethodGet, "/instances", nil)
+func (c *Client) ListInstances(ctx context.Context) ([]Instance, error) {
+	resp, err := c.sendComputeRequest(ctx, http.MethodGet, "/instances", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -309,32 +244,105 @@ func (c *Client) ListInstances() ([]Instance, error) {
 	return list.Items, nil
 }
 
-func (c *Client) ListExternalIPs() ([]ExternalIP, error) {
-	apiURL := fmt.Sprintf("%s//external-ips", c.BaseURL)
-	req, err := http.NewRequest("GET", apiURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
+// --- External IP Functions ---
 
-	req.Header.Set("Authorization", "Bearer "+c.APIToken)
+func (c *Client) CreateExternalIP(ctx context.Context, name string) (*ExternalIP, error) {
+	payload := map[string]interface{}{
+        "apiVersion": "compute/v2",
+        "kind":       "ExternalIP",
+        "metadata":   map[string]string{"name": name, "workspace": c.Workspace},
+        "spec":       map[string]bool{"reserved": true},
+    }
 
-	resp, err := c.HTTPClient.Do(req)
-    
+	resp, err := c.sendComputeRequest(ctx, http.MethodPost, "/external-ips", payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
+		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("API request failed with status code %d", resp.StatusCode  )
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, fmt.Errorf("failed to create external IP: %s ", resp.Status)
 	}
+	var ip ExternalIP
+	if err := json.NewDecoder(resp.Body).Decode(&ip); err != nil {
+		return nil, err
+	}
+	return &ip, nil
+}
 
-	var apiResponse struct {
+func (c *Client) GetExternalIP(ctx context.Context, name string) (*ExternalIP, error) {
+	resp, err := c.sendComputeRequest(ctx, http.MethodGet, "/external-ips/"+name, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to get external IP: %s", resp.Status)
+	}
+	var ip ExternalIP
+	if err := json.NewDecoder(resp.Body).Decode(&ip); err != nil {
+		return nil, err
+	}
+	return &ip, nil
+}
+
+func (c *Client) DeleteExternalIP(ctx context.Context, name string) error {
+	resp, err := c.sendComputeRequest(ctx, http.MethodDelete, "/external-ips/"+name, nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("failed to delete external IP: %s", resp.Status)
+	}
+	return nil
+}
+
+func (c *Client) ListExternalIPs(ctx context.Context) ([]ExternalIP, error) {
+	resp, err := c.sendComputeRequest(ctx, http.MethodGet, "/external-ips", nil)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to list external IPs: %s", resp.Status)
+	}
+	var ipList struct {
 		Items []ExternalIP `json:"items"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&apiResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode API response: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&ipList); err != nil {
+		return nil, err
 	}
-    
-	return apiResponse.Items, nil
+	return ipList.Items, nil
+}
+
+// --- IAM User Functions ---
+
+func (c *Client) CreateUser(ctx context.Context, userReq CreateUserRequest) (*types.User, error) {
+	return c.IAMClient.CreateUser(userReq.Name, userReq.Email, userReq.Password)
+}
+
+func (c *Client) GetUserByID(ctx context.Context, userID string) (*types.User, error) {
+	userUUID, err := uuid.FromString(userID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid user ID format: %w", err)
+	}
+	user, err := c.IAMClient.GetUser(&userUUID)
+	if err != nil {
+		if err.Error() == "User not found" { 
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+	return user, nil
+}
+
+func (c *Client) DeleteUser(ctx context.Context, userID string) error {
+	userUUID, err := uuid.FromString(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+	return c.IAMClient.DeleteUser(&userUUID)
 }
