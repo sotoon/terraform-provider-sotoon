@@ -82,7 +82,6 @@ func resourceInstance() *schema.Resource {
 	}
 }
 
-// buildInstanceSpec is a helper to construct the spec from schema data
 func buildInstanceSpec(d *schema.ResourceData) (client.InstanceSpec, error) {
 	interfacesSpec := d.Get("network_interface").([]interface{})
 	var apiInterfaces []struct {
@@ -126,7 +125,7 @@ func resourceInstanceCreate(ctx context.Context, d *schema.ResourceData, m inter
 		return diag.FromErr(err)
 	}
 
-	instance, err := c.CreateInstance(name, spec)
+	instance, err := c.CreateInstance(ctx, name, spec)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -140,7 +139,7 @@ func resourceInstanceRead(ctx context.Context, d *schema.ResourceData, m interfa
 	c := m.(*client.Client)
 	instanceName := d.Id()
 
-	instance, err := c.GetInstance(instanceName)
+	instance, err := c.GetInstance(ctx, instanceName)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -184,7 +183,7 @@ func resourceInstanceUpdate(ctx context.Context, d *schema.ResourceData, m inter
 			return diag.FromErr(err)
 		}
 
-		_, err = c.UpdateInstance(instanceName, spec)
+		_, err = c.UpdateInstance(ctx, instanceName, spec)
 		if err != nil {
 			return diag.FromErr(err)
 		}
@@ -197,7 +196,7 @@ func resourceInstanceDelete(ctx context.Context, d *schema.ResourceData, m inter
 	c := m.(*client.Client)
 	instanceName := d.Id()
 
-	err := c.DeleteInstance(instanceName)
+	err := c.DeleteInstance(ctx, instanceName)
 	if err != nil {
 		return diag.FromErr(err)
 	}
