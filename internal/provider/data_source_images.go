@@ -12,6 +12,7 @@ import (
 
 func dataSourceImages() *schema.Resource {
 	return &schema.Resource{
+		Description: "Fetches a list of available OS images.",
 		ReadContext: dataSourceImagesRead,
 		Schema: map[string]*schema.Schema{
 			"images": {
@@ -44,9 +45,8 @@ func dataSourceImages() *schema.Resource {
 
 func dataSourceImagesRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*client.Client)
-	var diags diag.Diagnostics
 
-	images, err := c.ListImages()
+	images, err := c.ListImages(ctx)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -66,8 +66,7 @@ func dataSourceImagesRead(ctx context.Context, d *schema.ResourceData, m interfa
 		return diag.FromErr(err)
 	}
 
-	// Set a unique ID for the data source
 	d.SetId(strconv.FormatInt(time.Now().Unix(), 10))
 
-	return diags
+	return nil
 }
