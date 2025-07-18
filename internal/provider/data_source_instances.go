@@ -87,7 +87,7 @@ func dataSourceInstances() *schema.Resource {
 func dataSourceInstancesRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*client.Client)
 
-	apiInstances, err := c.ListInstances()
+	apiInstances, err := c.ListInstances(ctx)
 	if err != nil {
 		return diag.FromErr(err)
 	}
