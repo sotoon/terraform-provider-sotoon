@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -63,8 +62,7 @@ func dataSourceExternalIPs() *schema.Resource {
 func dataSourceExternalIPsRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*client.Client)
 
-	apiResponseItems, err := c.ListExternalIPs()
-	fmt.Println(apiResponseItems)
+	apiResponseItems, err := c.ListExternalIPs(ctx)
 	if err != nil {
 		return diag.FromErr(err)
 	}
