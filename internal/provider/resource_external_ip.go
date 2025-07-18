@@ -9,10 +9,19 @@ import (
 
 func resourceExternalIP() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Manages an External IP address on the Sotoon platform.",
 		CreateContext: resourceExternalIPCreate,
 		ReadContext:   resourceExternalIPRead,
 		DeleteContext: resourceExternalIPDelete,
+		Importer: &schema.ResourceImporter{
+			StateContext: schema.ImportStatePassthroughContext,
+		},
 		Schema: map[string]*schema.Schema{
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The unique identifier for the External IP.",
+			},
 			"name": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -37,47 +46,45 @@ func resourceExternalIPCreate(ctx context.Context, d *schema.ResourceData, m int
 	c := m.(*client.Client)
 	name := d.Get("name").(string)
 
-	ip, err := c.CreateExternalIP(name)
+	ip, err := c.CreateExternalIP(ctx, name)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId(ip.Metadata.Name) // Using name as ID, assuming it's unique
+	d.SetId(ip.Metadata.Name)
 	return resourceExternalIPRead(ctx, d, m)
 }
 
 func resourceExternalIPRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*client.Client)
 	name := d.Id()
-	var diags diag.Diagnostics
 
-	ip, err := c.GetExternalIP(name)
+	ip, err := c.GetExternalIP(ctx, name)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	if ip == nil {
-		// Resource not found
 		d.SetId("")
-		return diags
+		return nil
 	}
 
 	d.Set("name", ip.Metadata.Name)
 	d.Set("workspace_id", ip.Metadata.Workspace)
+	d.Set("address", ip.Spec.IP)
 
-	return diags
+	return nil
 }
 
 func resourceExternalIPDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	c := m.(*client.Client)
 	name := d.Id()
-	var diags diag.Diagnostics
 
-	err := c.DeleteExternalIP(name)
+	err := c.DeleteExternalIP(ctx, name)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	d.SetId("") // Mark as deleted
-	return diags
+	d.SetId("")
+	return nil
 }
