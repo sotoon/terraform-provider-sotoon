@@ -5,6 +5,22 @@ go 1.24.3
 require (
 	github.com/hashicorp/terraform-plugin-docs v0.21.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.37.0
+	github.com/satori/go.uuid v1.2.0
+	github.com/sotoon/iam-client v1.0.44
+)
+
+require (
+	github.com/fsnotify/fsnotify v1.4.7 // indirect
+	github.com/hashicorp/hcl v1.0.0 // indirect
+	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
+	github.com/pelletier/go-toml v1.2.0 // indirect
+	github.com/spf13/afero v1.1.2 // indirect
+	github.com/spf13/jwalterweatherman v1.0.0 // indirect
+	github.com/spf13/pflag v1.0.3 // indirect
+	github.com/spf13/viper v1.7.0 // indirect
+	github.com/subosito/gotenv v1.2.0 // indirect
+	gopkg.in/ini.v1 v1.51.0 // indirect
 )
 
 require (
