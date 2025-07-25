@@ -1,5 +1,3 @@
-// internal/provider/resource_user.go
-
 package provider
 
 import (
@@ -9,7 +7,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client" // Ensure this module path is correct
-	"github.com/sotoon/iam-client/pkg/types"                      // Import types to inspect the custom error
+	// "github.com/sotoon/iam-client/pkg/types"                      // Import types to inspect the custom error
+	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"strings"
 )
 
 // resourceUser defines the schema and CRUD functions for the sotoon_iam_user resource.
@@ -28,6 +28,11 @@ func resourceUser() *schema.Resource {
 				Computed:    true,
 				Description: "The unique identifier for the user, returned by the API.",
 			},
+			"user_uuid": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "The UUID of the user.",
+			},
 			"email": {
 				Type:        schema.TypeString,
 				Required:    true,
@@ -36,63 +41,50 @@ func resourceUser() *schema.Resource {
 			},
 			"name": {
 				Type:        schema.TypeString,
-				Required:    true,
-				ForceNew:    true,
+				Computed:    true,
 				Description: "The display name of the user.",
-			},
-			"password": {
-				Type:        schema.TypeString,
-				Required:    true,
-				Sensitive:   true,
-				ForceNew:    true,
-				Description: "The password for the new user.",
 			},
 		},
 	}
 }
 
-// resourceUserCreate creates a new user based on the Terraform plan.
 func resourceUserCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
+	email := d.Get("email").(string)
 
-	userRequest := client.CreateUserRequest{
-		Email:    d.Get("email").(string),
-		Name:     d.Get("name").(string),
-		Password: d.Get("password").(string),
-	}
 
-	createdUser, err := c.CreateUser(ctx, userRequest)
+	_, err := c.GetUserByEmail(ctx, email)
 	if err != nil {
-		// --- ADVANCED ERROR HANDLING ---
-		// Check if the error is the specific type from the iam-client library.
-		var reqErr *types.RequestExecutionError
-		if errors.As(err, &reqErr) {
-			// If it is, create a more detailed diagnostic for the user.
-			// This prevents the provider from crashing on the unmarshal error
-			// by showing the raw API response instead.
-			return diag.Errorf(
-				"API Error: Failed to create user with status code %d. Raw response: %s",
-				reqErr.StatusCode,
-				string(reqErr.Data),
-			)
+		if errors.Is(err, client.ErrNotFound) {
+			tflog.Debug(ctx, "User not found, sending invitation", map[string]interface{}{"email": email})
+
+			_, inviteErr := c.InviteUser(ctx, email)
+			if inviteErr != nil {
+				if strings.Contains(strings.ToLower(inviteErr.Error()), "forbidden") {
+					return diag.Errorf("Forbidden: The API token does not have permission to invite new users.")
+				}
+				return diag.Errorf("Failed to invite user with email '%s': %s", email, inviteErr)
+			}
+		} else if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
+			return diag.Errorf("Forbidden: The API token does not have permission to read user information. Cannot check if user '%s' exists.", email)
+		} else {
+			return diag.FromErr(err)
 		}
-		// For other types of errors, use the default handler.
-		return diag.FromErr(err)
+	} else {
+		tflog.Debug(ctx, "User already exists, adopting into state", map[string]interface{}{"email": email})
 	}
 
-	d.SetId(createdUser.UUID.String())
+	d.SetId(email)
 
 	return resourceUserRead(ctx, d, meta)
 }
 
-// resourceUserRead retrieves the user's information from the API.
 func resourceUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
-	userID := d.Id()
+	userEmail := d.Id()
 
-	user, err := c.GetUserByID(ctx, userID)
+	user, err := c.GetUserByEmail(ctx, userEmail)
 	if err != nil {
-		// Check if the error is our custom "not found" error from the client wrapper.
 		if errors.Is(err, client.ErrNotFound) {
 			d.SetId("")
 			return nil
@@ -100,30 +92,21 @@ func resourceUserRead(ctx context.Context, d *schema.ResourceData, meta interfac
 		return diag.FromErr(err)
 	}
 
-	if user == nil {
-		d.SetId("")
-		return nil
+	if err := d.Set("email", user.Email); err != nil {
+		return diag.FromErr(err)
 	}
-
-	d.Set("email", user.Email)
-	d.Set("name", user.Name)
+	if err := d.Set("name", user.Name); err != nil {
+		return diag.FromErr(err)
+	}
+	if err := d.Set("user_uuid", user.UUID.String()); err != nil {
+		return diag.FromErr(err)
+	}
 
 	return nil
 }
 
-// resourceUserDelete removes the user from the platform.
+// resourceUserDelete "disowns" the user from the state without deleting it from Sotoon.
 func resourceUserDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(*client.Client)
-	userID := d.Id()
-
-	err := c.DeleteUser(ctx, userID)
-	if err != nil {
-		// Also ignore "not found" errors on delete, as the resource is already gone.
-		if errors.Is(err, client.ErrNotFound) {
-			return nil
-		}
-		return diag.FromErr(err)
-	}
-
+	d.SetId("")
 	return nil
 }
