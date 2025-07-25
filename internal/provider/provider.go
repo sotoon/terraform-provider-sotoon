@@ -27,7 +27,7 @@ func Provider() *schema.Provider {
 			"api_host": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("SOTOON_API_HOST", "https://api.sotoon.ir"),
+				DefaultFunc: schema.EnvDefaultFunc("SOTOON_API_HOST", "https://bepa.sotoon.ir"),
 				Description: "The Sotoon API host.",
 			},
 		},
@@ -39,6 +39,7 @@ func Provider() *schema.Provider {
 		DataSourcesMap: map[string]*schema.Resource{
 			"sotoon_instance":     dataSourceInstances(),
 			"sotoon_external_ips": dataSourceExternalIPs(),
+			"sotoon_iam_users": dataSourceUsers(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
