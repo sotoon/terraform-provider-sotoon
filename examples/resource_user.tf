@@ -1,7 +1,5 @@
 resource "sotoon_iam_user" "moein" {
-  name     = "Moein Tavakoli"
-  email    = "moein.tavakoli@sotoon.ir"
-  password = "S0me_R@nd0m_Pa$$w0rd"
+  email = "moein.tavakoli-test4@zurvun.com"
 }
 
 output "user_id" {
