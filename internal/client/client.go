@@ -12,6 +12,8 @@ import (
 	uuid "github.com/satori/go.uuid"
 	iamclient "github.com/sotoon/iam-client/pkg/client"
 	"github.com/sotoon/iam-client/pkg/types"
+    "strings"
+	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
 var ErrNotFound = errors.New("resource not found")
@@ -79,6 +81,7 @@ type Client struct {
 	ComputeBaseURL string
 	APIToken       string
 	Workspace      string
+    WorkspaceUUID  *uuid.UUID // Added to store the workspace UUID for invitations
 	HTTPClient     *http.Client
 	IAMClient      iamclient.Client 
 }
@@ -89,15 +92,20 @@ func NewClient(host, token, workspace string) (*Client, error) {
 		return nil, fmt.Errorf("host, token, and workspace must not be empty")
 	}
 
-	iam, err := iamclient.NewClient(token, "http://bepa.sotoon.ir/", workspace, "")
+	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace , "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
 	}
+    workspaceUUID, err := uuid.FromString(workspace)
+	if err != nil {
+    return nil, fmt.Errorf("invalid workspace_uuid format: %w", err)
+    }
 
 	return &Client{
 		ComputeBaseURL: fmt.Sprintf("%s/compute/v2/thr1/workspaces/%s", host, workspace),
 		APIToken:       token,
 		Workspace:      workspace,
+		WorkspaceUUID:  &workspaceUUID,
 		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
 		IAMClient:      iam,
 	}, nil
@@ -320,29 +328,59 @@ func (c *Client) ListExternalIPs(ctx context.Context) ([]ExternalIP, error) {
 
 // --- IAM User Functions ---
 
-func (c *Client) CreateUser(ctx context.Context, userReq CreateUserRequest) (*types.User, error) {
-	return c.IAMClient.CreateUser(userReq.Name, userReq.Email, userReq.Password)
+func (c *Client) InviteUser(ctx context.Context, email string) (*types.InvitationInfo, error) {
+
+    invitationInfo, err := c.IAMClient.InviteUser(c.WorkspaceUUID, email)
+
+    if err != nil {
+        if strings.Contains(err.Error(), "cannot unmarshal array into Go value of type") {
+            tflog.Debug(ctx, "Successfully invited user (ignoring known unmarshal error)")
+            return nil, nil
+        }
+        // Log the actual error before returning
+        tflog.Error(ctx, "Failed to invite user", map[string]interface{}{"error": err.Error()})
+        return nil, err
+    }
+
+    return invitationInfo, nil
 }
+
+
+func (c *Client) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
+    user, err := c.IAMClient.GetUserByEmail(email, c.WorkspaceUUID)
+    if err != nil {
+        if err.Error() == "User not found" {
+            return nil, ErrNotFound
+        }
+        return nil, err
+    }
+    return user, nil
+}
+
 
 func (c *Client) GetUserByID(ctx context.Context, userID string) (*types.User, error) {
 	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid user ID format: %w", err)
-	}
-	user, err := c.IAMClient.GetUser(&userUUID)
-	if err != nil {
-		if err.Error() == "User not found" { 
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	return user, nil
+    if err != nil {
+        return nil, fmt.Errorf("invalid user ID format: %w", err)
+    }
+    user, err := c.IAMClient.GetUser(&userUUID)
+    if err != nil {
+        if err.Error() == "User not found" { 
+            return nil, ErrNotFound
+        }
+        return nil, err
+    }
+    return user, nil
 }
 
 func (c *Client) DeleteUser(ctx context.Context, userID string) error {
-	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID format: %w", err)
-	}
-	return c.IAMClient.DeleteUser(&userUUID)
+    userUUID, err := uuid.FromString(userID)
+    if err != nil {
+        return fmt.Errorf("invalid user ID format: %w", err)
+    }
+    return c.IAMClient.DeleteUser(&userUUID)
+}
+
+func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) ([]*types.User, error) {
+	return c.IAMClient.GetWorkspaceUsers(workspaceID)
 }
