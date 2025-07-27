@@ -40,6 +40,7 @@ func Provider() *schema.Provider {
 			"sotoon_instance":     dataSourceInstances(),
 			"sotoon_external_ips": dataSourceExternalIPs(),
 			"sotoon_iam_users": dataSourceUsers(),
+			"sotoon_iam_groups": dataSourceGroups(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
