@@ -384,3 +384,8 @@ func (c *Client) DeleteUser(ctx context.Context, userID string) error {
 func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) ([]*types.User, error) {
 	return c.IAMClient.GetWorkspaceUsers(workspaceID)
 }
+
+func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID) ([]*types.Group, error) {
+	return c.IAMClient.GetAllGroups(workspaceID)
+}
+
