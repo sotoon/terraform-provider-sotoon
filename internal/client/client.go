@@ -389,3 +389,22 @@ func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID)
 	return c.IAMClient.GetAllGroups(workspaceID)
 }
 
+func (c *Client) CreateGroup(ctx context.Context, name, description string) (*types.Group, error) {
+	group, err := c.IAMClient.CreateGroup(name, c.WorkspaceUUID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.Group{
+		UUID: group.UUID,
+		Name: group.Name,
+	}, nil
+}
+
+func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
+	groupUUID, err := uuid.FromString(groupID)
+	if err != nil {
+		return fmt.Errorf("invalid group ID format: %w", err)
+	}
+	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
+}

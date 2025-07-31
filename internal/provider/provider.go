@@ -35,6 +35,7 @@ func Provider() *schema.Provider {
 			"sotoon_instance":    resourceInstance(),
 			"sotoon_external_ip": resourceExternalIP(),
 			"sotoon_iam_user": resourceUser(),
+			"sotoon_iam_group": resourceGroup(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"sotoon_instance":     dataSourceInstances(),
