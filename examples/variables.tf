@@ -12,3 +12,8 @@ variable "workspace_id" {
   nullable    = false
 }
 
+
+variable "workspace_id_target" {
+  description = "The target workspace ID"
+  type        = string
+}
