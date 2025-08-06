@@ -14,7 +14,7 @@ output "moein_user_id" {
   ])
 }
 
-output "first_user_details" {
-  description = "All details for the first user in the list."
-  value = one(data.sotoon_iam_users.all.users[*])
+output "all_user_details" {
+  description = "The details of all users in the workspace."
+  value       = data.sotoon_iam_users.all.users
 }
