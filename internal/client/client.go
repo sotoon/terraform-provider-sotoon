@@ -92,7 +92,7 @@ func NewClient(host, token, workspace string) (*Client, error) {
 		return nil, fmt.Errorf("host, token, and workspace must not be empty")
 	}
 
-	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace , "")
+	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace , "" , 2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
 	}
