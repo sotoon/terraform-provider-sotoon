@@ -1,5 +1,5 @@
 data "sotoon_iam_users" "all" {
-  workspace_id = "4dc150c4-8e77-480f-98b6-821f8fc50227"
+  workspace_id = var.workspace_id_target
 }
 
 output "all_user_emails" {
