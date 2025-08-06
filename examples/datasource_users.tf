@@ -1,5 +1,5 @@
 data "sotoon_iam_users" "all" {
-  workspace_id = "4dc150c4-8e77-480f-98b6-821f8fc50227"
+  workspace_id = var.workspace_id_target
 }
 
 output "all_user_emails" {
@@ -14,7 +14,7 @@ output "moein_user_id" {
   ])
 }
 
-output "first_user_details" {
-  description = "All details for the first user in the list."
-  value = one(data.sotoon_iam_users.all.users[*])
+output "all_user_details" {
+  description = "The details of all users in the workspace."
+  value       = data.sotoon_iam_users.all.users
 }
