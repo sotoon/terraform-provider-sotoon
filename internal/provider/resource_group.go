@@ -18,6 +18,7 @@ func resourceGroup() *schema.Resource {
 		CreateContext: resourceGroupCreate,
 		ReadContext:   resourceGroupRead,
 		DeleteContext: resourceGroupDelete,
+		UpdateContext: resourceGroupUpdate,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
 		},
@@ -36,7 +37,6 @@ func resourceGroup() *schema.Resource {
 			"description": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				ForceNew:    true,
 				Description: "A description of the group.",
 			},
 		},
@@ -92,7 +92,25 @@ func resourceGroupRead(ctx context.Context, d *schema.ResourceData, meta interfa
 	if err := d.Set("name", found.Name); err != nil {
 		return diag.FromErr(err)
 	}
+	if err := d.Set("description", found.Description); err != nil {
+		return diag.FromErr(err)
+	}
 	return nil
+}
+
+func resourceGroupUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	c := meta.(*client.Client)
+
+	if d.HasChange("description") {
+		name := d.Get("name").(string)
+		description := d.Get("description").(string)
+		err := c.UpdateGroup(ctx, d.Id(), name, description)
+		if err != nil {
+			return diag.Errorf("failed to update group description for %q: %s", d.Id(), err)
+		}
+	}
+
+	return resourceGroupRead(ctx, d, meta)
 }
 
 func resourceGroupDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
