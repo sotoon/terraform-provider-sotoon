@@ -34,6 +34,7 @@ func Provider() *schema.Provider {
 		ResourcesMap: map[string]*schema.Resource{
 			"sotoon_iam_user": resourceUser(),
 			"sotoon_iam_group": resourceGroup(),
+			"sotoon_iam_user_group_membership": resourceUserGroupMembership(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"sotoon_iam_users": dataSourceUsers(),
