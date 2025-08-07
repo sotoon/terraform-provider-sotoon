@@ -166,3 +166,19 @@ func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
 	}
 	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
 }
+
+func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
+	groupUUID, err := uuid.FromString(groupID)
+	if err != nil {
+		tflog.Error(ctx, "Failed to parse groupID string to UUID", map[string]interface{}{
+			"groupID": groupID,
+			"error":   err.Error(),
+		})
+		return err
+	}
+	err = c.IAMClient.UpdateGroup(*c.WorkspaceUUID, groupUUID, &name, &description, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}

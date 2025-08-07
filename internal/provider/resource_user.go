@@ -2,12 +2,11 @@ package provider
 
 import (
 	"context"
-	"errors" // Import the errors package
+	"errors" 
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/terraform-provider-sotoon/internal/client" // Ensure this module path is correct
-	// "github.com/sotoon/iam-client/pkg/types"                      // Import types to inspect the custom error
+	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"strings"
 )
