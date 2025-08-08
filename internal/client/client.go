@@ -182,3 +182,30 @@ func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, d
 	}
 	return nil
 }
+
+func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
+	tflog.Debug(ctx, "Attempting to remove user from group", map[string]interface{}{"userID": userID, "groupID": groupID})
+
+	groupUUID, err := uuid.FromString(groupID)
+	if err != nil {
+		return fmt.Errorf("invalid group ID format: %w", err)
+	}
+	userUUID, err := uuid.FromString(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	// Call the UnbindUserFromGroup function with pointers to the UUIDs.
+	err = c.IAMClient.UnbindUserFromGroup(c.WorkspaceUUID, &groupUUID, &userUUID)
+	if err != nil {
+		tflog.Error(ctx, "Failed to remove user from group via client", map[string]interface{}{
+			"userID":  userID,
+			"groupID": groupID,
+			"error":   err.Error(),
+		})
+		return err
+	}
+
+	tflog.Info(ctx, "Successfully removed user from group via client", map[string]interface{}{"userID": userID, "groupID": groupID})
+	return nil
+}

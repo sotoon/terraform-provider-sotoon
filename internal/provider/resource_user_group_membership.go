@@ -85,23 +85,21 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 }
 
 func resourceUserGroupMembershipDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	// c := meta.(*client.Client)
-	// userID := d.Get("user_id").(string)
-	// groupIds := d.Get("group_ids").([]interface{})
+    c := meta.(*client.Client)
+    userID := d.Get("user_id").(string)
+    groupIds := d.Get("group_ids").([]interface{})
 
-	// for _, groupID := range groupIds {
-	// TODO: must be develope in iam-client  
-	// 	err := c.RemoveUserFromGroup(ctx, groupID.(string), userID)
-	// 	if err != nil {
-	// 		// If the user or group is already gone, we can ignore the error.
-	// 		if strings.Contains(strings.ToLower(err.Error()), "not found") {
-	// 			tflog.Warn(ctx, "User or group not found during removal, assuming membership is already deleted.", map[string]interface{}{"userID": userID, "groupID": groupID})
-	// 			continue
-	// 		}
-	// 		return diag.Errorf("failed to remove user %s from group %s: %s", userID, groupID.(string), err)
-	// 	}
-	// }
+    for _, groupID := range groupIds {
+        err := c.RemoveUserFromGroup(ctx, groupID.(string), userID)
+        if err != nil {
+            if strings.Contains(strings.ToLower(err.Error()), "not found") {
+                tflog.Warn(ctx, "User or group not found during removal, assuming membership is already deleted.", map[string]interface{}{"userID": userID, "groupID": groupID})
+                continue
+            }
+            return diag.Errorf("failed to remove user %s from group %s: %s", userID, groupID.(string), err)
+        }
+    }
 
-	// d.SetId("")
-	return nil
+    d.SetId("")
+    return nil
 }
