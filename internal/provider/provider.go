@@ -45,10 +45,14 @@ func Provider() *schema.Provider {
 			"sotoon_iam_user_public_key": resourceUserPublicKey(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"sotoon_iam_users":            dataSourceUsers(),
-			"sotoon_iam_groups":           dataSourceGroups(),
+			"sotoon_iam_users":                    dataSourceUsers(),
+			"sotoon_iam_groups":                   dataSourceGroups(),
 			"sotoon_iam_user_tokens":      dataSourceUserTokens(),
 			"sotoon_iam_user_public_keys": dataSourceUserPublicKeys(),
+			"sotoon_iam_group_users_list":         dataSourceGroupUsersList(),
+			"sotoon_iam_group_details":            dataSourceGroupDetails(),
+			"sotoon_iam_group_roles_list":         dataSourceGroupRoles(),
+			"sotoon_iam_group_user_services_list": dataSourceGroupUserServicesList(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
