@@ -147,6 +147,22 @@ func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID)
 	return c.IAMClient.GetAllGroups(workspaceID)
 }
 
+func (c *Client) GetWorkspaceGroupUsersList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.User, error) {
+	return c.IAMClient.GetAllGroupUserList(workspaceID, groupID)
+}
+
+func (c *Client) GetWorkspaceGroupRoleList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.Role, error) {
+	return c.IAMClient.GetWorkspaceGroupRoleList(*workspaceID, *groupID)
+}
+
+func (c *Client) GetAllGroupServiceUserList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.ServiceUser, error) {
+	return c.IAMClient.GetAllGroupServiceUserList(workspaceID, groupID)
+}
+
+func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, groupID uuid.UUID) (*types.Group, error) {
+	return c.IAMClient.GetWorkspaceGroupDetail(workspaceID, groupID)
+}
+
 func (c *Client) CreateGroup(ctx context.Context, name, description string) (*types.Group, error) {
 	group, err := c.IAMClient.CreateGroup(name, c.WorkspaceUUID)
 	if err != nil {
