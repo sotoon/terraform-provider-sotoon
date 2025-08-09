@@ -31,18 +31,18 @@ type Client struct {
 	ComputeBaseURL string
 	APIToken       string
 	Workspace      string
-    WorkspaceUUID  *uuid.UUID // Added to store the workspace UUID for invitations
+    WorkspaceUUID  *uuid.UUID 
 	HTTPClient     *http.Client
 	IAMClient      iamclient.Client 
 }
 
 // NewClient creates a new unified API client for both Compute and IAM.
-func NewClient(host, token, workspace string) (*Client, error) {
+func NewClient(host, token, workspace string, userID string) (*Client, error) {
 	if host == "" || token == "" || workspace == "" {
 		return nil, fmt.Errorf("host, token, and workspace must not be empty")
 	}
 
-	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace , "" , 2)
+	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace, userID, 2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
 	}
@@ -166,6 +166,43 @@ func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
 	}
 	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
 }
+
+// --- IAM User-Token Functions ---
+
+func (c *Client) CreateMyUserToken(name string, expiresAt *time.Time) (*types.UserToken, error) {
+	return c.IAMClient.CreateMyUserToken(name, expiresAt)
+}
+
+func (c *Client) GetMyUserToken(tokenUUID *uuid.UUID) (*types.UserToken, error) {
+	return c.IAMClient.GetMyUserToken(tokenUUID)
+}
+
+func (c *Client) GetAllMyUserTokenList() (*[]types.UserToken, error) {
+	return c.IAMClient.GetAllMyUserTokenList()
+}
+
+func (c *Client) DeleteMyUserToken(tokenUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteMyUserToken(tokenUUID)
+}
+
+// --- IAM Public-Key Functions ---
+
+func (c *Client) CreateMyUserPublicKey(title, keyType, key string) (*types.PublicKey, error) {
+	return c.IAMClient.CreateMyUserPublicKey(title, keyType, key)
+}
+
+func (c *Client) GetOneDefaultUserPublicKey(keyUUID *uuid.UUID) (*types.PublicKey, error) {
+	return c.IAMClient.GetOneDefaultUserPublicKey(keyUUID)
+}
+
+func (c *Client) GetAllMyUserPublicKeyList() ([]*types.PublicKey, error) {
+	return c.IAMClient.GetAllMyUserPublicKeyList()
+}
+
+func (c *Client) DeleteDefaultUserPublicKey(keyUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteMyUserPublicKey(keyUUID)
+}
+// --- Group Functions ---
 
 func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
 	groupUUID, err := uuid.FromString(groupID)
