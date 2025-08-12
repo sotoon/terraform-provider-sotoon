@@ -37,8 +37,8 @@ type Client struct {
 }
 
 // NewClient creates a new unified API client for both Compute and IAM.
-func NewClient(host, token, workspace string, userID string) (*Client, error) {
-	if host == "" || token == "" || workspace == "" {
+func NewClient(host, token, workspace, userID string) (*Client, error) {
+	if host == "" || token == "" || workspace == "" || userID == "" {
 		return nil, fmt.Errorf("host, token, and workspace must not be empty")
 	}
 
@@ -164,14 +164,15 @@ func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, group
 }
 
 func (c *Client) CreateGroup(ctx context.Context, name, description string) (*types.Group, error) {
-	group, err := c.IAMClient.CreateGroup(name, c.WorkspaceUUID)
+	group, err := c.IAMClient.CreateGroup(name, description, c.WorkspaceUUID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &types.Group{
-		UUID: group.UUID,
-		Name: group.Name,
+		UUID:        group.UUID,
+		Name:        group.Name,
+		Description: group.Description,
 	}, nil
 }
 
@@ -182,43 +183,6 @@ func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
 	}
 	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
 }
-
-// --- IAM User-Token Functions ---
-
-func (c *Client) CreateMyUserToken(name string, expiresAt *time.Time) (*types.UserToken, error) {
-	return c.IAMClient.CreateMyUserToken(name, expiresAt)
-}
-
-func (c *Client) GetMyUserToken(tokenUUID *uuid.UUID) (*types.UserToken, error) {
-	return c.IAMClient.GetMyUserToken(tokenUUID)
-}
-
-func (c *Client) GetAllMyUserTokenList() (*[]types.UserToken, error) {
-	return c.IAMClient.GetAllMyUserTokenList()
-}
-
-func (c *Client) DeleteMyUserToken(tokenUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteMyUserToken(tokenUUID)
-}
-
-// --- IAM Public-Key Functions ---
-
-func (c *Client) CreateMyUserPublicKey(title, keyType, key string) (*types.PublicKey, error) {
-	return c.IAMClient.CreateMyUserPublicKey(title, keyType, key)
-}
-
-func (c *Client) GetOneDefaultUserPublicKey(keyUUID *uuid.UUID) (*types.PublicKey, error) {
-	return c.IAMClient.GetOneDefaultUserPublicKey(keyUUID)
-}
-
-func (c *Client) GetAllMyUserPublicKeyList() ([]*types.PublicKey, error) {
-	return c.IAMClient.GetAllMyUserPublicKeyList()
-}
-
-func (c *Client) DeleteDefaultUserPublicKey(keyUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteMyUserPublicKey(keyUUID)
-}
-// --- Group Functions ---
 
 func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
 	groupUUID, err := uuid.FromString(groupID)
@@ -236,29 +200,86 @@ func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, d
 	return nil
 }
 
-func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
-	tflog.Debug(ctx, "Attempting to remove user from group", map[string]interface{}{"userID": userID, "groupID": groupID})
+func (c *Client) BindRoleToGroup(workspaceUUID *uuid.UUID, roleUUID *uuid.UUID, groupUUID *uuid.UUID, items map[string]string) error {
+	return c.IAMClient.BindRoleToGroup(workspaceUUID, roleUUID, groupUUID, items)
+}
 
-	groupUUID, err := uuid.FromString(groupID)
-	if err != nil {
-		return fmt.Errorf("invalid group ID format: %w", err)
-	}
-	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID format: %w", err)
-	}
+func (c *Client) BulkAddRolesToGroup(workspaceUUID *uuid.UUID, groupUUID *uuid.UUID, rolesWithItems []types.RoleWithItems) error {
+	return c.IAMClient.BulkAddRolesToGroup(*workspaceUUID, *groupUUID, rolesWithItems)
+}
 
-	// Call the UnbindUserFromGroup function with pointers to the UUIDs.
-	err = c.IAMClient.UnbindUserFromGroup(c.WorkspaceUUID, &groupUUID, &userUUID)
-	if err != nil {
-		tflog.Error(ctx, "Failed to remove user from group via client", map[string]interface{}{
-			"userID":  userID,
-			"groupID": groupID,
-			"error":   err.Error(),
-		})
-		return err
-	}
+func (c *Client) UnbindRoleFromGroup(workspaceUUID *uuid.UUID, roleUUID *uuid.UUID, groupUUID *uuid.UUID, items map[string]string) error {
+	return c.IAMClient.UnbindRoleFromGroup(workspaceUUID, roleUUID, groupUUID, items)
+}
 
-	tflog.Info(ctx, "Successfully removed user from group via client", map[string]interface{}{"userID": userID, "groupID": groupID})
-	return nil
+func (c *Client) BulkAddServiceUsersToGroup(workspaceUUID, groupUUID uuid.UUID, serviceUserUUIDs []uuid.UUID) ([]*types.GroupServiceUser, error) {
+	return c.IAMClient.BulkAddServiceUsersToGroup(workspaceUUID, groupUUID, serviceUserUUIDs)
+}
+
+func (c *Client) UnbindServiceUserFromGroup(workspaceUUID, groupUUID, serviceUserUUID *uuid.UUID) error {
+	return c.IAMClient.UnbindServiceUserFromGroup(workspaceUUID, groupUUID, serviceUserUUID)
+}
+
+func (c *Client) GetServiceUsers(workspaceUUID *uuid.UUID) ([]*types.ServiceUser, error) {
+	return c.IAMClient.GetServiceUsers(workspaceUUID)
+}
+
+func (c *Client) GetServiceUser(workspaceUUID, serviceUserUUID *uuid.UUID) (*types.ServiceUser, error) {
+	return c.IAMClient.GetServiceUser(workspaceUUID, serviceUserUUID)
+}
+
+func (c *Client) GetWorkspaceServiceUserList(workspaceUUID uuid.UUID) ([]*types.ServiceUserWithCompactRole, error) {
+	return c.IAMClient.GetWorkspaceServiceUserList(workspaceUUID)
+}
+
+func (c *Client) GetWorkspaceServiceUserDetail(workspaceUUID, serviceUserUUID uuid.UUID) (*types.ServiceUserWithCompactRole, error) {
+	return c.IAMClient.GetWorkspaceServiceUserDetail(workspaceUUID, serviceUserUUID)
+}
+
+func (c *Client) CreateServiceUser(serviceUserName, description string, workspace *uuid.UUID) (*types.ServiceUser, error) {
+	return c.IAMClient.CreateServiceUser(serviceUserName, description, workspace)
+}
+
+func (c *Client) DeleteServiceUser(workspaceUUID, serviceUserUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteServiceUser(workspaceUUID, serviceUserUUID)
+}
+
+func (c *Client) UpdateServiceUser(workspaceUUID, serviceUserUUID uuid.UUID, name, description string) (*types.ServiceUser, error) {
+	return c.IAMClient.UpdateServiceUser(workspaceUUID, serviceUserUUID, name, description)
+}
+
+func (c *Client) GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID *uuid.UUID) (*[]types.ServiceUserToken, error) {
+	return c.IAMClient.GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID)
+}
+
+func (c *Client) CreateServiceUserToken(serviceUserUUID, workspaceUUID *uuid.UUID) (*types.ServiceUserToken, error) {
+	return c.IAMClient.CreateServiceUserToken(serviceUserUUID, workspaceUUID)
+}
+
+func (c *Client) DeleteServiceUserToken(serviceUserUUID, workspaceUUID, serviceUserTokenUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteServiceUserToken(serviceUserUUID, workspaceUUID, serviceUserTokenUUID)
+}
+
+func (c *Client) GetWorkspaceServiceUserPublicKeyList(workspaceUUID, serviceUserUUID uuid.UUID) ([]*types.ServiceUserPublicKey, error) {
+	return c.IAMClient.GetWorkspaceServiceUserPublicKeyList(workspaceUUID, serviceUserUUID)
+}
+
+func (c *Client) CreateServiceUserPublicKey(workspaceUUID, serviceUserUUID uuid.UUID, name, publicKey string) (*types.ServiceUserPublicKey, error) {
+	return c.IAMClient.CreateServiceUserPublicKey(workspaceUUID, serviceUserUUID, name, publicKey)
+}
+
+func (c *Client) DeleteServiceUserPublicKey(workspaceUUID, serviceUserUUID, publicKeyUUID uuid.UUID) error {
+	return c.IAMClient.DeleteServiceUserPublicKey(workspaceUUID, serviceUserUUID, publicKeyUUID)
+}
+
+func (c *Client) UnbindRoleFromServiceUser(workspaceUUID, roleUUID, serviceUserUUID *uuid.UUID, items map[string]string) error {
+	return c.IAMClient.UnbindRoleFromServiceUser(workspaceUUID, roleUUID, serviceUserUUID, items)
+}
+
+func (c *Client) GetRoleServiceUsers(roleUUID, workspaceUUID *uuid.UUID) ([]*types.ServiceUser, error) {
+	return c.IAMClient.GetRoleServiceUsers(roleUUID, workspaceUUID)
+}
+
+func (c *Client) BulkAddServiceUsersToRole(workspaceUUID, roleUUID uuid.UUID, serviceUserUUIDs []uuid.UUID) error {
+	return c.IAMClient.BulkAddServiceUsersToRole(workspaceUUID, roleUUID, serviceUserUUIDs)
 }
