@@ -1,10 +1,10 @@
 resource "sotoon_iam_group" "developer" {
   name = "developer"
-  description = "this is user created by developers teamd"
+  description = "this is user created by developers teams"
 }
 
 resource "sotoon_iam_group" "manager" {
-  name = "developer"
+  name = "manager"
 }
 
 output "group_id" {
