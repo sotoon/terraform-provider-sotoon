@@ -283,3 +283,34 @@ func (c *Client) GetRoleServiceUsers(roleUUID, workspaceUUID *uuid.UUID) ([]*typ
 func (c *Client) BulkAddServiceUsersToRole(workspaceUUID, roleUUID uuid.UUID, serviceUserUUIDs []uuid.UUID) error {
 	return c.IAMClient.BulkAddServiceUsersToRole(workspaceUUID, roleUUID, serviceUserUUIDs)
 }
+
+// --- IAM Role Functions ---
+
+func (c *Client) GetWorkspaceRoles(ctx context.Context) ([]*types.Role, error) {
+	return c.IAMClient.GetWorkspaceRoles(c.WorkspaceUUID)
+}
+
+func (c *Client) CreateRole(ctx context.Context, name string) (*types.Role, error) {
+	return c.IAMClient.CreateRole(name, c.WorkspaceUUID)
+}
+
+func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*types.RoleRes, error) {
+	return c.IAMClient.GetRole(roleUUID, c.WorkspaceUUID)
+}
+
+func (c *Client) GetRoleByName(ctx context.Context, roleName string) (*types.RoleRes, error) {
+	return c.IAMClient.GetRoleByName(roleName, c.Workspace)
+}
+
+func (c *Client) DeleteRole(ctx context.Context, roleID string) error {
+	id, err := uuid.FromString(roleID)
+	if err != nil {
+		return fmt.Errorf("invalid role ID %q: %w", roleID, err)
+	}
+	return c.IAMClient.DeleteRole(&id, c.WorkspaceUUID)
+}
+
+func (c *Client) UpdateRole(ctx context.Context, roleUUID *uuid.UUID, name string) (*types.Role, error) {
+	return c.IAMClient.UpdateRole(roleUUID, name, c.WorkspaceUUID)
+}
+
