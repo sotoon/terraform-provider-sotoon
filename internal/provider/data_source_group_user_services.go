@@ -10,7 +10,7 @@ import (
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
-func dataSourceGroupUserServicesList() *schema.Resource {
+func dataSourceGroupUserServices() *schema.Resource {
 	return &schema.Resource{
 		ReadContext: dataSourceGroupUserServicesListRead,
 		Schema: map[string]*schema.Schema{

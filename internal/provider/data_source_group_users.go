@@ -11,7 +11,7 @@ import (
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
-func dataSourceGroupUsersList() *schema.Resource {
+func dataSourceGroupUsers() *schema.Resource {
 	return &schema.Resource{
 		Description: "Fetches a list of IAM users within a specific Sotoon group and workspace.",
 		ReadContext: dataSourceGroupUsersListRead,

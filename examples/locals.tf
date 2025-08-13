@@ -11,4 +11,7 @@ locals {
   target_group_manager = one([
     for group in data.sotoon_iam_groups.all.groups : group if group.name == "manager"
   ])
+  target_service_user_builder = one([
+    for su in data.sotoon_iam_service_users.all.users : su if su.name == "builder"
+  ])
 }
