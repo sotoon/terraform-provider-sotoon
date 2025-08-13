@@ -39,7 +39,7 @@ type Client struct {
 // NewClient creates a new unified API client for both Compute and IAM.
 func NewClient(host, token, workspace, userID string) (*Client, error) {
 	if host == "" || token == "" || workspace == "" || userID == "" {
-		return nil, fmt.Errorf("host, token, and workspace must not be empty")
+		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
 
 	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace, userID, 2)
