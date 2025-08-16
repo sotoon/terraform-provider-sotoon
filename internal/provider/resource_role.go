@@ -102,8 +102,8 @@ func resourceRoleDelete(ctx context.Context, d *schema.ResourceData, meta interf
 	c := meta.(*client.Client)
 
 	if err := c.DeleteRole(ctx, d.Id()); err != nil {
-		d.SetId("")
 		if errors.Is(err, client.ErrNotFound) {
+			d.SetId("")
 			tflog.Warn(ctx, "Role already deleted or not found", map[string]interface{}{"role_id": d.Id()})
 			return nil
 		}
