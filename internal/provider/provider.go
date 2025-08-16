@@ -47,6 +47,7 @@ func Provider() *schema.Provider {
 			"sotoon_iam_service_user_public_key": resourceServiceUserPublicKey(),
 			"sotoon_iam_service_user_role":       resourceServiceUserRole(),
 			"sotoon_iam_user_role":               resourceUserRole(),
+			"sotoon_iam_role":                    resourceRole(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"sotoon_iam_users":                    dataSourceUsers(),
@@ -59,6 +60,7 @@ func Provider() *schema.Provider {
 			"sotoon_iam_service_user_public_keys": dataSourceServiceUserPublicKeys(),
 			"sotoon_iam_service_user_tokens":      dataSourceServiceUserTokens(),
 			"sotoon_iam_service_users":            dataSourceServiceUsers(),
+			"sotoon_iam_roles":                    dataSourceRoles(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
