@@ -184,6 +184,43 @@ func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
 	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
 }
 
+// --- IAM User-Token Functions ---
+
+func (c *Client) CreateMyUserToken(name string, expiresAt *time.Time) (*types.UserToken, error) {
+	return c.IAMClient.CreateMyUserToken(name, expiresAt)
+}
+
+func (c *Client) GetMyUserToken(tokenUUID *uuid.UUID) (*types.UserToken, error) {
+	return c.IAMClient.GetMyUserToken(tokenUUID)
+}
+
+func (c *Client) GetAllMyUserTokenList() (*[]types.UserToken, error) {
+	return c.IAMClient.GetAllMyUserTokenList()
+}
+
+func (c *Client) DeleteMyUserToken(tokenUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteMyUserToken(tokenUUID)
+}
+
+// --- IAM Public-Key Functions ---
+
+func (c *Client) CreateMyUserPublicKey(title, keyType, key string) (*types.PublicKey, error) {
+	return c.IAMClient.CreateMyUserPublicKey(title, keyType, key)
+}
+
+func (c *Client) GetOneDefaultUserPublicKey(keyUUID *uuid.UUID) (*types.PublicKey, error) {
+	return c.IAMClient.GetOneDefaultUserPublicKey(keyUUID)
+}
+
+func (c *Client) GetAllMyUserPublicKeyList() ([]*types.PublicKey, error) {
+	return c.IAMClient.GetAllMyUserPublicKeyList()
+}
+
+func (c *Client) DeleteDefaultUserPublicKey(keyUUID *uuid.UUID) error {
+	return c.IAMClient.DeleteMyUserPublicKey(keyUUID)
+}
+// --- Group Functions ---
+
 func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
 	groupUUID, err := uuid.FromString(groupID)
 	if err != nil {
@@ -197,6 +234,33 @@ func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, d
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
+	tflog.Debug(ctx, "Attempting to remove user from group", map[string]interface{}{"userID": userID, "groupID": groupID})
+
+	groupUUID, err := uuid.FromString(groupID)
+	if err != nil {
+		return fmt.Errorf("invalid group ID format: %w", err)
+	}
+	userUUID, err := uuid.FromString(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID format: %w", err)
+	}
+
+	// Call the UnbindUserFromGroup function with pointers to the UUIDs.
+	err = c.IAMClient.UnbindUserFromGroup(c.WorkspaceUUID, &groupUUID, &userUUID)
+	if err != nil {
+		tflog.Error(ctx, "Failed to remove user from group via client", map[string]interface{}{
+			"userID":  userID,
+			"groupID": groupID,
+			"error":   err.Error(),
+		})
+		return err
+	}
+
+	tflog.Info(ctx, "Successfully removed user from group via client", map[string]interface{}{"userID": userID, "groupID": groupID})
 	return nil
 }
 
@@ -314,3 +378,12 @@ func (c *Client) UpdateRole(ctx context.Context, roleUUID *uuid.UUID, name strin
 	return c.IAMClient.UpdateRole(roleUUID, name, c.WorkspaceUUID)
 }
 
+// --- IAM Rule Functions ---
+
+func (c *Client) GetWorkspaceRules(ctx context.Context) ([]*types.Rule, error) {
+	return c.IAMClient.GetWorkspaceRules(c.WorkspaceUUID)
+}
+
+func (c *Client) GetRule(ctx context.Context, ruleUUID *uuid.UUID) (*types.Rule, error) {
+	return c.IAMClient.GetRule(ruleUUID, c.WorkspaceUUID)
+}
