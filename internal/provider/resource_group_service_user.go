@@ -32,7 +32,7 @@ func resourceGroupServiceUser() *schema.Resource {
 			},
 			"service_user_ids": {
 				Type:     schema.TypeSet,
-				Required: true,
+				Optional: true,
 				ForceNew: true,
 				MinItems: 1,
 				Elem: &schema.Schema{

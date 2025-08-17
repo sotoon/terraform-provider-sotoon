@@ -23,7 +23,7 @@ func resourceServiceUserRole() *schema.Resource {
 			"service_user_ids": {
 				Type:     schema.TypeSet,
 				ForceNew: true,
-				Required: true,
+				Optional: true,
 				MinItems: 1,
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
