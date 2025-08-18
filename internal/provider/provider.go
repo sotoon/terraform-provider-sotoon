@@ -33,13 +33,18 @@ func Provider() *schema.Provider {
 			"user_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("SOTOON_USER_ID", ""),
-				Description: "The Sotoon UserID.",
+				DefaultFunc: schema.EnvDefaultFunc("SOTOON_USER_ID", nil),
+				Description: "The Sotoon User ID",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"sotoon_iam_user":                    resourceUser(),
-			"sotoon_iam_group":                   resourceGroup(),
+			"sotoon_iam_user":            resourceUser(),
+			"sotoon_iam_group":           resourceGroup(),
+			"sotoon_iam_user_token":      resourceUserToken(),
+			"sotoon_iam_user_public_key": resourceUserPublicKey(),
+			"sotoon_iam_user_group_membership": resourceUserGroupMembership(),
+
+
 			"sotoon_iam_group_role":              resourceGroupRole(),
 			"sotoon_iam_service_user_group":      resourceGroupServiceUser(),
 			"sotoon_iam_service_user":            resourceServiceUser(),
@@ -50,17 +55,21 @@ func Provider() *schema.Provider {
 			"sotoon_iam_role":                    resourceRole(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"sotoon_iam_users":                    dataSourceUsers(),
-			"sotoon_iam_groups":                   dataSourceGroups(),
+			"sotoon_iam_users":            dataSourceUsers(),
+			"sotoon_iam_groups":           dataSourceGroups(),
+			"sotoon_iam_user_tokens":      dataSourceUserTokens(),
+			"sotoon_iam_user_public_keys": dataSourceUserPublicKeys(),
+
 			"sotoon_iam_group_users":              dataSourceGroupUsers(),
 			"sotoon_iam_group_details":            dataSourceGroupDetails(),
 			"sotoon_iam_group_roles":              dataSourceGroupRoles(),
 			"sotoon_iam_service_user_groups":      dataSourceGroupUserServices(),
 			"sotoon_iam_service_user_details":     dataSourceServiceUserDetails(),
-			"sotoon_iam_service_user_public_keys": dataSourceServiceUserPublicKeys(),
+			"sotoon_iam_service_user_public_keys": dataSourceServiceUserPublicKeys(),	
 			"sotoon_iam_service_user_tokens":      dataSourceServiceUserTokens(),
 			"sotoon_iam_service_users":            dataSourceServiceUsers(),
 			"sotoon_iam_roles":                    dataSourceRoles(),
+			"sotoon_iam_rules":                    dataSourceRules(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
