@@ -23,4 +23,4 @@ description: |-
 ### Optional
 
 - `api_host` (String) The Sotoon API host.
-- `user_id` (String) The Sotoon UserID.
+- `user_id` (String) The Sotoon User ID
