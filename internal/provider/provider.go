@@ -33,8 +33,8 @@ func Provider() *schema.Provider {
 			"user_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
-				DefaultFunc: schema.EnvDefaultFunc("SOTOON_USER_ID", nil),
-				Description: "The Sotoon User ID",
+				DefaultFunc: schema.EnvDefaultFunc("SOTOON_USER_ID", ""),
+				Description: "The Sotoon UserID.",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
