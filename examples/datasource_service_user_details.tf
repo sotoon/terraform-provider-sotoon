@@ -1,7 +1,7 @@
-data "sotoon_iam_service_user_details" "this" {
-  service_user_id = "29a54954-3f38-4a5e-9e51-1ea582ab90f2"
+data "sotoon_iam_service_user_details" "builder" {
+  service_user_id = local.target_service_user_builder.id
 }
 
 output "service_user_name" {
-  value = data.sotoon_iam_service_user_details.this
+  value = data.sotoon_iam_service_user_details.builder
 }

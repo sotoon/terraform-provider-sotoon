@@ -18,9 +18,6 @@ description: |-
 ### Required
 
 - `role_id` (String)
-
-### Optional
-
 - `service_user_ids` (Set of String)
 
 ### Read-Only

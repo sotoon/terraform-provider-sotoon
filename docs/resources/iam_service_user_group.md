@@ -18,9 +18,6 @@ Binds service users to a group within a Sotoon workspace.
 ### Required
 
 - `group_id` (String)
-
-### Optional
-
 - `service_user_ids` (Set of String)
 
 ### Read-Only
