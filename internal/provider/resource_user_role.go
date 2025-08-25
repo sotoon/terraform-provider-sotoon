@@ -25,7 +25,7 @@ func resourceUserRole() *schema.Resource {
 			"id": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: `Composite ID in the form "<role_uuid>;<user_uuid>[;<user_uuid>...]"`,
+				Description: `Stable identifier (anchor + hash).`,
 			},
 			"role_id": {
 				Type:        schema.TypeString,
@@ -41,6 +41,11 @@ func resourceUserRole() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "Set of user UUIDs to bind to the role.",
 			},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted user_ids. Changes when membership changes.",
+			},
 		},
 	}
 }
@@ -54,13 +59,18 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.Errorf("invalid role_id format: %s", err)
 	}
 
-	raw := d.Get("user_ids").(*schema.Set).List()
-	userUUIDs := make([]uuid.UUID, 0, len(raw))
-	for _, v := range raw {
-		u, err := uuid.FromString(v.(string))
-		if err != nil {
-			return diag.Errorf("invalid user_id in list: %s", err)
-		}
+	input := fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err != nil {
+		return diag.Errorf("invalid user_ids: %s", err)
+	}
+	ids := uniqueSorted(converted)
+	hash := hashOfIDs(ids)
+	_ = d.Set("bindings_hash", hash)
+
+	userUUIDs := make([]uuid.UUID, 0, len(ids))
+	for _, s := range ids {
+		u, _ := uuid.FromString(s)
 		userUUIDs = append(userUUIDs, u)
 	}
 
@@ -76,11 +86,17 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 	tflog.Debug(ctx, "Added users to role",
 		map[string]interface{}{"roleID": roleID, "userIDs": uuidsToStringSlice(userUUIDs)})
 
-	d.SetId(roleID.String() + ":" + uuid.NewV4().String())
+	d.SetId(roleID.String() + ":" + hash[:16])
 	return resourceUserRoleRead(ctx, d, meta)
 }
 
 func resourceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	input := fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err == nil {
+		hash := hashOfIDs(uniqueSorted(converted))
+		_ = d.Set("bindings_hash", hash)
+	}
 	tflog.Info(ctx, "Reading user-role bulk binding", map[string]interface{}{"id": d.Id()})
 	return nil
 }
