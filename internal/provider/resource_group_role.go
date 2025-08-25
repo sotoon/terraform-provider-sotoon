@@ -25,7 +25,7 @@ func resourceGroupRole() *schema.Resource {
 			"id": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Description: `Composite ID in the form "<group_uuid>;<role_uuid>[;<role_uuid>...]" (new) or "<group_uuid>/<role_uuid>" (legacy).`,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
 			},
 			"group_id": {
 				Type:        schema.TypeString,
@@ -48,6 +48,11 @@ func resourceGroupRole() *schema.Resource {
 				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "Optional key/value items to pass to the bind API for each role.",
 			},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted, canonical role_ids. Changes when the set of roles changes.",
+			},
 		},
 	}
 }
@@ -61,20 +66,13 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("invalid group_id %q: %s", groupStr, err)
 	}
 
-	rawRoles := d.Get("role_ids").(*schema.Set)
-	if rawRoles == nil || rawRoles.Len() == 0 {
-		return diag.Errorf("role_ids must be provided and contain at least one UUID")
+	roleIDsInput := fromSchemaSetToStrings(d.Get("role_ids").(*schema.Set))
+	roleIDsCanon, err := convertStringsToUUIDArray(roleIDsInput)
+	if err != nil {
+		return diag.FromErr(fmt.Errorf("invalid role_ids: %w", err))
 	}
-
-	roleUUIDs := make([]uuid.UUID, 0, rawRoles.Len())
-	for _, v := range rawRoles.List() {
-		rs := v.(string)
-		rid, err := uuid.FromString(rs)
-		if err != nil {
-			return diag.FromErr(fmt.Errorf("invalid role_ids entry %q: %w", rs, err))
-		}
-		roleUUIDs = append(roleUUIDs, rid)
-	}
+	roleIDs := uniqueSorted(roleIDsCanon)
+	bindingsHash := hashOfIDs(roleIDs)
 
 	items := map[string]string{}
 	if raw, ok := d.GetOk("items"); ok && raw != nil {
@@ -83,10 +81,11 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
-	rolesWithItems := make([]types.RoleWithItems, 0, len(roleUUIDs))
-	for _, r := range roleUUIDs {
+	rolesWithItems := make([]types.RoleWithItems, 0, len(roleIDs))
+	for _, r := range roleIDs {
+		rid, _ := uuid.FromString(r)
 		rolesWithItems = append(rolesWithItems, types.RoleWithItems{
-			RoleUUID: r.String(),
+			RoleUUID: rid.String(),
 			Items:    []map[string]string{items},
 		})
 	}
@@ -95,11 +94,18 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("bulk bind roles to group %s failed: %s", groupUUID.String(), err)
 	}
 
-	d.SetId(groupUUID.String() + ":" + uuid.NewV4().String())
+	d.SetId(fmt.Sprintf("%s:%s", groupUUID.String(), bindingsHash[:16]))
+	_ = d.Set("bindings_hash", bindingsHash)
 	return resourceGroupRoleRead(ctx, d, meta)
 }
 
 func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	roleIDsInput := fromSchemaSetToStrings(d.Get("role_ids").(*schema.Set))
+	roleIDsCanon, err := convertStringsToUUIDArray(roleIDsInput)
+	if err == nil {
+		roleIDs := uniqueSorted(roleIDsCanon)
+		_ = d.Set("bindings_hash", hashOfIDs(roleIDs))
+	}
 	tflog.Info(ctx, "Reading group role", map[string]interface{}{"id": d.Id()})
 	return nil
 }
@@ -113,7 +119,6 @@ func resourceGroupRoleDelete(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	roleIds := d.Get("role_ids").(*schema.Set).List()
-
 	for _, v := range roleIds {
 		s := v.(string)
 		u, err := uuid.FromString(s)
@@ -121,8 +126,8 @@ func resourceGroupRoleDelete(ctx context.Context, d *schema.ResourceData, meta i
 			return diag.Errorf("invalid role_id in list: %s", err)
 		}
 
-		if err := c.UnbindRoleFromGroup(c.WorkspaceUUID, &groupUUID, &u, map[string]string{}); err != nil {
-			return diag.Errorf("unbind group %s from role %s failed: %s", u.String(), groupUUID.String(), err)
+		if err := c.UnbindRoleFromGroup(c.WorkspaceUUID, &u, &groupUUID, map[string]string{}); err != nil {
+			return diag.Errorf("unbind role %s from group %s failed: %s", u.String(), groupUUID.String(), err)
 		}
 	}
 

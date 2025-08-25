@@ -39,6 +39,11 @@ func resourceGroupServiceUser() *schema.Resource {
 					Type: schema.TypeString,
 				},
 			},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted, canonical service_user_ids.",
+			},
 		},
 	}
 }
@@ -52,15 +57,17 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("invalid group_id format: %s", err)
 	}
 
-	raw := d.Get("service_user_ids").(*schema.Set).List()
+	input := fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err != nil {
+		return diag.Errorf("invalid service_user_ids: %s", err)
+	}
+	ids := uniqueSorted(converted)
+	_ = d.Set("bindings_hash", hashOfIDs(ids))
 
-	suUUIDs := make([]uuid.UUID, 0, len(raw))
-	for _, v := range raw {
-		s := v.(string)
-		u, err := uuid.FromString(s)
-		if err != nil {
-			return diag.Errorf("invalid service_user_id in list: %s", err)
-		}
+	suUUIDs := make([]uuid.UUID, 0, len(ids))
+	for _, s := range ids {
+		u, _ := uuid.FromString(s)
 		suUUIDs = append(suUUIDs, u)
 	}
 
@@ -70,11 +77,16 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 		}
 	}
 
-	d.SetId(groupUUID.String() + ":" + uuid.NewV4().String())
+	d.SetId(groupUUID.String() + ":" + hashOfIDs(ids)[:16])
 	return resourceGroupServiceUserRead(ctx, d, meta)
 }
 
 func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	input := fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err == nil {
+		_ = d.Set("bindings_hash", hashOfIDs(uniqueSorted(converted)))
+	}
 	tflog.Info(ctx, "Reading service user group", map[string]interface{}{"id": d.Id()})
 	return nil
 }
@@ -88,7 +100,6 @@ func resourceGroupServiceUserDelete(ctx context.Context, d *schema.ResourceData,
 	}
 
 	serviceUserIds := d.Get("service_user_ids").(*schema.Set).List()
-
 	for _, v := range serviceUserIds {
 		s := v.(string)
 		u, err := uuid.FromString(s)
@@ -103,12 +114,4 @@ func resourceGroupServiceUserDelete(ctx context.Context, d *schema.ResourceData,
 
 	d.SetId("")
 	return nil
-}
-
-func uuidsToStringSlice(in []uuid.UUID) []string {
-	out := make([]string, len(in))
-	for i, u := range in {
-		out[i] = u.String()
-	}
-	return out
 }

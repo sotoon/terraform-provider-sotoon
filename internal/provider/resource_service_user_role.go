@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -28,6 +27,11 @@ func resourceServiceUserRole() *schema.Resource {
 				Elem:     &schema.Schema{Type: schema.TypeString},
 			},
 			"role_id": {Type: schema.TypeString, Required: true, ForceNew: true},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted, canonical service_user_ids.",
+			},
 		},
 	}
 }
@@ -41,13 +45,17 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 		return diag.Errorf("invalid role_id format: %s", err)
 	}
 
-	raw := d.Get("service_user_ids").(*schema.Set).List()
-	suUUIDs := make([]uuid.UUID, 0, len(raw))
-	for _, v := range raw {
-		u, err := uuid.FromString(v.(string))
-		if err != nil {
-			return diag.Errorf("invalid service_user_id in list: %s", err)
-		}
+	input := fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err != nil {
+		return diag.Errorf("invalid service_user_ids: %s", err)
+	}
+	ids := uniqueSorted(converted)
+	_ = d.Set("bindings_hash", hashOfIDs(ids))
+
+	suUUIDs := make([]uuid.UUID, 0, len(ids))
+	for _, s := range ids {
+		u, _ := uuid.FromString(s)
 		suUUIDs = append(suUUIDs, u)
 	}
 
@@ -65,11 +73,16 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 			map[string]interface{}{"roleID": roleID, "serviceUserIDs": uuidsToStringSlice(suUUIDs)})
 	}
 
-	d.SetId(roleID.String() + ":" + uuid.NewV4().String())
+	d.SetId(roleID.String() + ":" + hashOfIDs(ids)[:16])
 	return resourceServiceUserRoleRead(ctx, d, meta)
 }
 
 func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	input := fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set))
+	converted, err := convertStringsToUUIDArray(input)
+	if err == nil {
+		_ = d.Set("bindings_hash", hashOfIDs(uniqueSorted(converted)))
+	}
 	tflog.Info(ctx, "Reading service user role", map[string]interface{}{"id": d.Id()})
 	return nil
 }
@@ -95,20 +108,4 @@ func resourceServiceUserRoleDelete(ctx context.Context, d *schema.ResourceData, 
 	}
 	d.SetId("")
 	return nil
-}
-
-func parseTwoPartID(id string) (uuid.UUID, uuid.UUID, error) {
-	parts := strings.Split(id, "/")
-	if len(parts) != 2 {
-		return uuid.UUID{}, uuid.UUID{}, fmt.Errorf("unexpected id: %s", id)
-	}
-	a, err := uuid.FromString(parts[0])
-	if err != nil {
-		return uuid.UUID{}, uuid.UUID{}, err
-	}
-	b, err := uuid.FromString(parts[1])
-	if err != nil {
-		return uuid.UUID{}, uuid.UUID{}, err
-	}
-	return a, b, nil
 }
