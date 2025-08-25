@@ -6,5 +6,5 @@ resource "sotoon_iam_user_token" "me" {
 output "new_user_token" {
   description = "The newly minted user token."
   value       = sotoon_iam_user_token.me.value
-  sensitive   = true
+  sensitive   = false
 }
