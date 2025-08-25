@@ -198,6 +198,10 @@ func (c *Client) GetAllMyUserTokenList() (*[]types.UserToken, error) {
 	return c.IAMClient.GetAllMyUserTokenList()
 }
 
+func (c *Client) GetUser(userUUID *uuid.UUID) (*types.User, error) {
+	return c.IAMClient.GetUser(userUUID)
+}
+
 func (c *Client) DeleteMyUserToken(tokenUUID *uuid.UUID) error {
 	return c.IAMClient.DeleteMyUserToken(tokenUUID)
 }
@@ -272,7 +276,7 @@ func (c *Client) BulkAddRolesToGroup(workspaceUUID *uuid.UUID, groupUUID *uuid.U
 	return c.IAMClient.BulkAddRolesToGroup(*workspaceUUID, *groupUUID, rolesWithItems)
 }
 
-func (c *Client) UnbindRoleFromGroup(workspaceUUID *uuid.UUID, roleUUID *uuid.UUID, groupUUID *uuid.UUID, items map[string]string) error {
+func (c *Client) UnbindRoleFromGroup(workspaceUUID, roleUUID, groupUUID *uuid.UUID, items map[string]string) error {
 	return c.IAMClient.UnbindRoleFromGroup(workspaceUUID, roleUUID, groupUUID, items)
 }
 
