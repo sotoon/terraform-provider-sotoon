@@ -2,7 +2,6 @@ resource "sotoon_iam_service_user_group" "bind_builder_to_developer" {
   group_id = local.target_group_developer.id
   service_user_ids = [
     local.target_service_user_builder.id,
-    "acdb2ca0-5b47-4c8f-acfb-41df17456245"
   ]
 }
 
