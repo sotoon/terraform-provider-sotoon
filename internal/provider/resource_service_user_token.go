@@ -17,8 +17,21 @@ func resourceServiceUserToken() *schema.Resource {
 		ReadContext:   resourceServiceUserTokenRead,
 		DeleteContext: resourceServiceUserTokenDelete,
 		Schema: map[string]*schema.Schema{
-			"id":              {Type: schema.TypeString, Computed: true},
-			"service_user_id": {Type: schema.TypeString, Required: true, ForceNew: true},
+			"id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
+			"service_user_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"value": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Sensitive:   false,
+				Description: "The newly issued service user token value.",
+			},
 		},
 	}
 }
@@ -31,6 +44,7 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
 	tok, err := c.CreateServiceUserToken(&suID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
@@ -38,6 +52,14 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 	if tok == nil || tok.UUID == nil {
 		return diag.Errorf("empty token response")
 	}
+
+	if tok.Secret == "" {
+		return diag.Errorf("service user token secret not returned by API at creation time")
+	}
+	if err := d.Set("value", tok.Secret); err != nil {
+		return diag.Errorf("error setting token value: %s", err)
+	}
+
 	d.SetId(fmt.Sprintf("%s/%s", suID.String(), tok.UUID.String()))
 	return resourceServiceUserTokenRead(ctx, d, meta)
 }
@@ -49,10 +71,12 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
 	list, err := c.GetWorkspaceServiceUserTokenList(&suID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
+
 	found := false
 	if list != nil {
 		for _, t := range *list {
@@ -66,7 +90,9 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 		d.SetId("")
 		return nil
 	}
+
 	_ = d.Set("service_user_id", suID.String())
+
 	return nil
 }
 
