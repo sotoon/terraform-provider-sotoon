@@ -2,10 +2,6 @@ package provider
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"fmt"
-	"sort"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -21,6 +17,7 @@ func resourceUserGroupMembership() *schema.Resource {
 		Description:   "Manages the membership of a user in one or more IAM groups.",
 		CreateContext: resourceUserGroupMembershipCreate,
 		ReadContext:   resourceUserGroupMembershipRead,
+		UpdateContext: resourceUserGroupMembershipUpdate,
 		DeleteContext: resourceUserGroupMembershipDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -38,9 +35,9 @@ func resourceUserGroupMembership() *schema.Resource {
 				Description: "The UUID of the group to add users to.",
 			},
 			"user_ids": {
-				Type:        schema.TypeList,
+				Type:        schema.TypeSet,
 				Required:    true,
-				ForceNew:    true,
+				MinItems:    1,
 				Description: "A list of user UUIDs to add to the group.",
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -61,82 +58,121 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 	groupID := d.Get("group_id").(string)
 	groupUUID, err := uuid.FromString(groupID)
 	if err != nil {
-		return diag.Errorf("invalid group_id format: %s", err)
+		return diag.Errorf("invalid group_id: %s", err)
 	}
 
-	raw := d.Get("user_ids").([]interface{})
-	seen := make(map[string]struct{}, len(raw))
-	userIDs := make([]string, 0, len(raw))
-	userUUIDs := make([]uuid.UUID, 0, len(raw))
+	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
 
-	for _, v := range raw {
-		s := v.(string)
-		if _, ok := seen[s]; ok {
-			continue
+	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
+	if err != nil {
+		return diag.Errorf("read group users: %s", err)
+	}
+	remoteUsersID := make([]string, 0, len(usersList))
+	for _, u := range usersList {
+		remoteUsersID = append(remoteUsersID, u.UUID.String())
+	}
+	remoteUsersID = uniqueSorted(remoteUsersID)
+
+	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
+	if len(toAddList) > 0 {
+		uuids := make([]uuid.UUID, 0, len(toAddList))
+		for _, id := range toAddList {
+			uuid, _ := uuid.FromString(id)
+			uuids = append(uuids, uuid)
 		}
-		seen[s] = struct{}{}
-		u, err := uuid.FromString(s)
-		if err != nil {
-			return diag.Errorf("invalid user_ids entry %q: %s", s, err)
+		if _, err := c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+			return diag.Errorf("add users to group %s: %s", groupID, err)
 		}
-		userIDs = append(userIDs, u.String())
-		userUUIDs = append(userUUIDs, u)
 	}
 
-	sort.Strings(userIDs)
-	h := sha256.Sum256([]byte(strings.Join(userIDs, ",")))
-	fullHash := hex.EncodeToString(h[:])
-	shortHash := fullHash[:16]
+	d.SetId(groupUUID.String())
+	_ = d.Set("bindings_hash", hashOfIDs(sortedUserIds))
+	return resourceUserGroupMembershipRead(ctx, d, meta)
+}
 
-	for i, u := range userUUIDs {
-		_, err := c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, []uuid.UUID{u})
-		if err != nil {
-			msg := strings.ToLower(err.Error())
-			if strings.Contains(msg, "bad request") || strings.Contains(msg, "already") {
-				tflog.Warn(ctx, "User may already be a member; continuing", map[string]interface{}{
-					"groupID": groupID, "userID": userIDs[i],
-				})
-				continue
-			}
-			return diag.Errorf("failed to add user %s to group %s: %s", userIDs[i], groupID, err)
-		}
-		tflog.Debug(ctx, "Successfully added user to group", map[string]interface{}{"groupID": groupID, "userID": userIDs[i]})
+func resourceUserGroupMembershipUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if !d.HasChange("user_ids") {
+		return resourceUserGroupMembershipRead(ctx, d, meta)
 	}
+	c := meta.(*client.Client)
 
-	d.SetId(fmt.Sprintf("%s:%s", groupID, shortHash))
-	_ = d.Set("bindings_hash", fullHash)
+	groupID := d.Get("group_id").(string)
+	groupUUID, _ := uuid.FromString(groupID)
+
+	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
+
+	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
+	if err != nil {
+		return diag.Errorf("read group users: %s", err)
+	}
+	remoteUsersID := make([]string, 0, len(usersList))
+	for _, u := range usersList {
+		remoteUsersID = append(remoteUsersID, u.UUID.String())
+	}
+	remoteUsersID = uniqueSorted(remoteUsersID)
+
+	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
+	if len(toAddList) > 0 {
+		uuids := make([]uuid.UUID, 0, len(toAddList))
+		for _, s := range toAddList {
+			u, _ := uuid.FromString(s)
+			uuids = append(uuids, u)
+		}
+		if _, err := c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+			return diag.Errorf("add users to group %s: %s", groupID, err)
+		}
+	}
 	return resourceUserGroupMembershipRead(ctx, d, meta)
 }
 
 func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	raw := d.Get("user_ids").([]interface{})
-	userIDs := make([]string, 0, len(raw))
-	for _, v := range raw {
-		u, err := uuid.FromString(v.(string))
-		if err != nil {
-			continue
-		}
-		userIDs = append(userIDs, u.String())
-	}
-	sort.Strings(userIDs)
-	h := sha256.Sum256([]byte(strings.Join(userIDs, ",")))
-	_ = d.Set("bindings_hash", hex.EncodeToString(h[:]))
+	c := meta.(*client.Client)
+	groupID := d.Get("group_id").(string)
+	groupUUID, err := uuid.FromString(groupID)
 
-	tflog.Info(ctx, "Reading user group membership", map[string]interface{}{"id": d.Id()})
+	if err != nil {
+		d.SetId("")
+		return nil
+	}
+
+	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
+
+	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
+	if err != nil {
+		return diag.Errorf("read group users: %s", err)
+	}
+	remoteUsersID := make([]string, 0, len(usersList))
+
+	for _, u := range usersList {
+		remoteUsersID = append(remoteUsersID, u.UUID.String())
+	}
+
+	remoteUsersID = uniqueSorted(remoteUsersID)
+	eff := intersect(toSet(sortedUserIds), toSet(remoteUsersID))
+	effective := uniqueSorted(setKeys(eff))
+
+	_ = d.Set("user_ids", effective)
+	_ = d.Set("bindings_hash", hashOfIDs(effective))
+
+	d.SetId(groupUUID.String())
+
+	tflog.Info(ctx, "Read user group membership", map[string]interface{}{"group_id": groupID, "have": len(effective)})
 	return nil
 }
 
 func resourceUserGroupMembershipDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
+
 	groupID := d.Get("group_id").(string)
-	userIDs := d.Get("user_ids").([]interface{})
+	userIDs := d.Get("user_ids").(*schema.Set).List()
 
 	for _, v := range userIDs {
 		uid := v.(string)
 		if err := c.RemoveUserFromGroup(ctx, groupID, uid); err != nil {
 			msg := strings.ToLower(err.Error())
 			if strings.Contains(msg, "not found") || strings.Contains(msg, "no such") {
-				tflog.Warn(ctx, "User or group not found during removal; assuming already deleted", map[string]interface{}{"groupID": groupID, "userID": uid})
+				tflog.Warn(ctx, "User or group not found during removal; assuming already deleted",
+					map[string]interface{}{"groupID": groupID, "userID": uid})
 				continue
 			}
 			return diag.Errorf("failed to remove user %s from group %s: %s", uid, groupID, err)
