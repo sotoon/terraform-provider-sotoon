@@ -5,5 +5,5 @@ resource "sotoon_iam_service_user_token" "builder_token" {
 output "service_user_token_value" {
   description = "Service user token"
   value       = sotoon_iam_service_user_token.builder_token.value
-  sensitive   = false
+  sensitive   = true
 }

@@ -44,7 +44,7 @@ func resourceUserToken() *schema.Resource {
 			"value": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Sensitive:   false,
+				Sensitive:   true,
 				Description: "The newly issued token value.",
 			},
 		},

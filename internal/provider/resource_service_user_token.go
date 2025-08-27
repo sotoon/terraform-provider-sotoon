@@ -29,7 +29,7 @@ func resourceServiceUserToken() *schema.Resource {
 			"value": {
 				Type:        schema.TypeString,
 				Computed:    true,
-				Sensitive:   false,
+				Sensitive:   true,
 				Description: "The newly issued service user token value.",
 			},
 		},
@@ -39,13 +39,13 @@ func resourceServiceUserToken() *schema.Resource {
 func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	idStr := d.Get("service_user_id").(string)
-	suID, err := uuid.FromString(idStr)
+	serviceUserID := d.Get("service_user_id").(string)
+	serviceUserUUID, err := uuid.FromString(serviceUserID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	tok, err := c.CreateServiceUserToken(&suID, c.WorkspaceUUID)
+	tok, err := c.CreateServiceUserToken(&serviceUserUUID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -60,19 +60,19 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("error setting token value: %s", err)
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", suID.String(), tok.UUID.String()))
+	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), tok.UUID.String()))
 	return resourceServiceUserTokenRead(ctx, d, meta)
 }
 
 func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	suID, tokID, err := parseTwoPartID(d.Id())
+	serviceUserID, tokenID, err := parseTwoPartID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
-	list, err := c.GetWorkspaceServiceUserTokenList(&suID, c.WorkspaceUUID)
+	list, err := c.GetWorkspaceServiceUserTokenList(&serviceUserID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -80,7 +80,7 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 	found := false
 	if list != nil {
 		for _, t := range *list {
-			if t.UUID != nil && t.UUID.String() == tokID.String() {
+			if t.UUID != nil && t.UUID.String() == tokenID.String() {
 				found = true
 				break
 			}
@@ -91,7 +91,7 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 		return nil
 	}
 
-	_ = d.Set("service_user_id", suID.String())
+	_ = d.Set("service_user_id", serviceUserID.String())
 
 	return nil
 }
@@ -99,11 +99,11 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 func resourceServiceUserTokenDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	suID, tokID, err := parseTwoPartID(d.Id())
+	serviceUserID, tokenID, err := parseTwoPartID(d.Id())
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if err := c.DeleteServiceUserToken(&suID, c.WorkspaceUUID, &tokID); err != nil {
+	if err := c.DeleteServiceUserToken(&serviceUserID, c.WorkspaceUUID, &tokenID); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
