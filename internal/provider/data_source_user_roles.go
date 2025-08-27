@@ -45,7 +45,7 @@ func dataSourceUserRoles() *schema.Resource {
 }
 
 func dataSourceUserRolesRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	c := meta.(client.Client) // interface is fine; no need to cast to *client.Client
+	c := meta.(*client.Client)
 
 	userStr := d.Get("user_id").(string)
 	userUUID, err := uuid.FromString(userStr)
