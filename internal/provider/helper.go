@@ -11,19 +11,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-// parse strings to array of uuids and validate if each one is uuid
-func convertStringsToUUIDArray(in []string) ([]string, error) {
-	out := make([]string, 0, len(in))
-	for _, s := range in {
-		u, err := uuid.FromString(s)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, u.String())
-	}
-	return out, nil
-}
-
 // create sorted and unique array of uuids
 func uniqueSorted(in []string) []string {
 	if len(in) == 0 {
@@ -62,15 +49,6 @@ func fromSchemaSetToStrings(s *schema.Set) []string {
 	return out
 }
 
-// parse array of uuids to array of strings
-func uuidsToStringSlice(in []uuid.UUID) []string {
-	out := make([]string, len(in))
-	for i, u := range in {
-		out[i] = u.String()
-	}
-	return out
-}
-
 // check if there is two ids, check string for uuid and then returns two values with possible errors
 func parseTwoPartID(id string) (uuid.UUID, uuid.UUID, error) {
 	parts := strings.Split(id, "/")
@@ -86,4 +64,40 @@ func parseTwoPartID(id string) (uuid.UUID, uuid.UUID, error) {
 		return uuid.UUID{}, uuid.UUID{}, err
 	}
 	return a, b, nil
+}
+
+func toSet(xs []string) map[string]struct{} {
+	m := make(map[string]struct{}, len(xs))
+	for _, x := range xs {
+		m[x] = struct{}{}
+	}
+	return m
+}
+
+func setKeys(m map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+func intersect(a, b map[string]struct{}) map[string]struct{} {
+	out := make(map[string]struct{})
+	for k := range a {
+		if _, ok := b[k]; ok {
+			out[k] = struct{}{}
+		}
+	}
+	return out
+}
+
+func diff(a, b map[string]struct{}) []string {
+	out := []string{}
+	for k := range a {
+		if _, ok := b[k]; !ok {
+			out = append(out, k)
+		}
+	}
+	return uniqueSorted(out)
 }
