@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -20,6 +21,16 @@ func resourceServiceUserToken() *schema.Resource {
 			"id": {
 				Type:     schema.TypeString,
 				Computed: true,
+			},
+			"name": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
+			},
+			"expires_at": {
+				Type:     schema.TypeString,
+				Optional: true,
+				ForceNew: true,
 			},
 			"service_user_id": {
 				Type:     schema.TypeString,
@@ -45,7 +56,19 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 		return diag.FromErr(err)
 	}
 
-	tok, err := c.CreateServiceUserToken(&serviceUserUUID, c.WorkspaceUUID)
+
+	name := d.Get("name").(string)
+
+	var expiresAt *time.Time
+	if expiresAtString, ok := d.GetOk("expires_at"); ok {
+		expAt, err := time.Parse(time.RFC3339, expiresAtString.(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		expiresAt = &expAt
+	}
+
+	tok, err := c.CreateServiceUserToken(&serviceUserUUID, c.WorkspaceUUID, name, expiresAt)
 	if err != nil {
 		return diag.FromErr(err)
 	}

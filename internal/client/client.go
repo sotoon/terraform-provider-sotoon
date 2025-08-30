@@ -320,8 +320,8 @@ func (c *Client) GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID
 	return c.IAMClient.GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID)
 }
 
-func (c *Client) CreateServiceUserToken(serviceUserUUID, workspaceUUID *uuid.UUID) (*types.ServiceUserToken, error) {
-	return c.IAMClient.CreateServiceUserToken(serviceUserUUID, workspaceUUID)
+func (c *Client) CreateServiceUserToken(serviceUserUUID, workspaceUUID *uuid.UUID, name string, expiresAt *time.Time) (*types.ServiceUserToken, error) {
+	return c.IAMClient.CreateServiceUserToken(serviceUserUUID, workspaceUUID, name, expiresAt)
 }
 
 func (c *Client) DeleteServiceUserToken(serviceUserUUID, workspaceUUID, serviceUserTokenUUID *uuid.UUID) error {
