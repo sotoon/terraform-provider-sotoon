@@ -40,6 +40,6 @@ func dataSourceServiceUserDetailsRead(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId(det.UUID.String())
-	_ = d.Set("name", det.Name)
+	d.Set("name", det.Name)
 	return nil
 }

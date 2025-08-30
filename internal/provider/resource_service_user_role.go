@@ -2,10 +2,7 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
-	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	uuid "github.com/satori/go.uuid"
@@ -16,71 +13,129 @@ import (
 func resourceServiceUserRole() *schema.Resource {
 	return &schema.Resource{
 		CreateContext: resourceServiceUserRoleCreate,
+		UpdateContext: resourceServiceUserRoleUpdate,
 		ReadContext:   resourceServiceUserRoleRead,
 		DeleteContext: resourceServiceUserRoleDelete,
 		Schema: map[string]*schema.Schema{
-			"id": {Type: schema.TypeString, Computed: true},
+			"id": {
+				Type:     schema.TypeString,
+				Computed: true,
+			},
 			"service_user_ids": {
 				Type:     schema.TypeSet,
-				ForceNew: true,
 				Required: true,
 				MinItems: 1,
-				Elem:     &schema.Schema{Type: schema.TypeString},
+				ForceNew: true,
+				Elem: &schema.Schema{
+					Type: schema.TypeString,
+				},
 			},
-			"role_id": {Type: schema.TypeString, Required: true, ForceNew: true},
+			"role_id": {
+				Type:     schema.TypeString,
+				Required: true,
+				ForceNew: true,
+			},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted, canonical service_user_ids.",
+			},
 		},
 	}
 }
 
 func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
-
-	roleStr := d.Get("role_id").(string)
-	roleID, err := uuid.FromString(roleStr)
+	roleID := d.Get("role_id").(string)
+	roleUUID, err := uuid.FromString(roleID)
 	if err != nil {
-		return diag.Errorf("invalid role_id format: %s", err)
+		return diag.Errorf("invalid role_id: %s", err)
 	}
 
-	raw := d.Get("service_user_ids").(*schema.Set).List()
-	suUUIDs := make([]uuid.UUID, 0, len(raw))
-	for _, v := range raw {
-		u, err := uuid.FromString(v.(string))
-		if err != nil {
-			return diag.Errorf("invalid service_user_id in list: %s", err)
+	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
+
+	serviceUsersList, err := c.IAMClient.GetRoleServiceUsers(c.WorkspaceUUID, &roleUUID)
+	if err != nil {
+		return diag.Errorf("read service-users of role: %s", err)
+	}
+
+	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
+	for _, u := range serviceUsersList {
+		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+	}
+
+	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
+	toAddList := diff(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
+	if len(toAddList) > 0 {
+		uuids := make([]uuid.UUID, 0, len(toAddList))
+		for _, id := range toAddList {
+			uuid, _ := uuid.FromString(id)
+			uuids = append(uuids, uuid)
 		}
-		suUUIDs = append(suUUIDs, u)
-	}
-
-	if len(suUUIDs) > 0 {
-		if err := c.IAMClient.BulkAddServiceUsersToRole(*c.WorkspaceUUID, roleID, suUUIDs); err != nil {
-			low := strings.ToLower(err.Error())
-			if strings.Contains(low, "already") || strings.Contains(low, "exists") || strings.Contains(low, "conflict") {
-				tflog.Warn(ctx, "Service users may already have this role",
-					map[string]interface{}{"roleID": roleID, "serviceUserIDs": uuidsToStringSlice(suUUIDs)})
-			} else {
-				return diag.Errorf("failed to add service users to role %s: %s", roleID, err)
-			}
+		if err := c.IAMClient.BulkAddServiceUsersToRole(*c.WorkspaceUUID, roleUUID, uuids); err != nil {
+			return diag.Errorf("add service users to role %s: %s", roleUUID, err)
 		}
-		tflog.Debug(ctx, "Added service users to role",
-			map[string]interface{}{"roleID": roleID, "serviceUserIDs": uuidsToStringSlice(suUUIDs)})
 	}
 
-	d.SetId(roleID.String() + ":" + uuid.NewV4().String())
+	bindHash := hashOfIDs(sortedServiceUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(roleUUID.String() + ":" + bindHash)
+
 	return resourceServiceUserRoleRead(ctx, d, meta)
 }
 
+func resourceServiceUserRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if !d.HasChange("service_user_ids") {
+		return nil
+	}
+	return resourceServiceUserRoleCreate(ctx, d, meta)
+}
+
 func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	tflog.Info(ctx, "Reading service user role", map[string]interface{}{"id": d.Id()})
+	c := meta.(*client.Client)
+
+	roleID := d.Get("role_id").(string)
+	roleUUID, err := uuid.FromString(roleID)
+	if err != nil {
+		d.SetId("")
+		return nil
+	}
+
+	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
+
+	serviceUsersList, err := c.IAMClient.GetRoleServiceUsers(c.WorkspaceUUID, &roleUUID)
+	if err != nil {
+		return diag.Errorf("read service-users of role %s: %s", roleUUID, err)
+	}
+
+	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
+	for _, u := range serviceUsersList {
+		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+	}
+	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
+
+	eff := intersect(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
+	effective := uniqueSorted(setKeys(eff))
+
+	d.Set("service_user_ids", effective)
+
+	bindHash, _ := d.Get("bindings_hash").(string)
+	if bindHash == "" {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(roleUUID.String() + ":" + bindHash)
 	return nil
 }
 
 func resourceServiceUserRoleDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	roleStr := d.Get("role_id").(string)
-	roleID, err := uuid.FromString(roleStr)
+	roleID := d.Get("role_id").(string)
+	roleUUID, err := uuid.FromString(roleID)
 	if err != nil {
-		return diag.Errorf("invalid role_id %q: %s", roleStr, err)
+		return diag.Errorf("invalid role_id %q: %s", roleID, err)
 	}
 
 	raw := d.Get("service_user_ids").(*schema.Set).List()
@@ -89,26 +144,10 @@ func resourceServiceUserRoleDelete(ctx context.Context, d *schema.ResourceData, 
 		if err != nil {
 			return diag.Errorf("invalid service_user_id in list: %s", err)
 		}
-		if err := c.UnbindRoleFromServiceUser(c.WorkspaceUUID, &roleID, &u, map[string]string{}); err != nil {
-			return diag.Errorf("unbind service user %s from role %s failed: %s", u.String(), roleID.String(), err)
+		if err := c.UnbindRoleFromServiceUser(c.WorkspaceUUID, &roleUUID, &u, map[string]string{}); err != nil {
+			return diag.Errorf("unbind service user %s from role %s failed: %s", u.String(), roleUUID.String(), err)
 		}
 	}
 	d.SetId("")
 	return nil
-}
-
-func parseTwoPartID(id string) (uuid.UUID, uuid.UUID, error) {
-	parts := strings.Split(id, "/")
-	if len(parts) != 2 {
-		return uuid.UUID{}, uuid.UUID{}, fmt.Errorf("unexpected id: %s", id)
-	}
-	a, err := uuid.FromString(parts[0])
-	if err != nil {
-		return uuid.UUID{}, uuid.UUID{}, err
-	}
-	b, err := uuid.FromString(parts[1])
-	if err != nil {
-		return uuid.UUID{}, uuid.UUID{}, err
-	}
-	return a, b, nil
 }

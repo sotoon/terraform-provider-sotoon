@@ -53,6 +53,6 @@ func dataSourceServiceUserTokensRead(ctx context.Context, d *schema.ResourceData
 		}
 	}
 	d.SetId(suID.String())
-	_ = d.Set("tokens", result)
+	d.Set("tokens", result)
 	return nil
 }

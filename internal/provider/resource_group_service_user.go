@@ -15,6 +15,7 @@ func resourceGroupServiceUser() *schema.Resource {
 	return &schema.Resource{
 		Description:   "Binds service users to a group within a Sotoon workspace.",
 		CreateContext: resourceGroupServiceUserCreate,
+		UpdateContext: resourceGroupServiceUserUpdate,
 		ReadContext:   resourceGroupServiceUserRead,
 		DeleteContext: resourceGroupServiceUserDelete,
 		Importer: &schema.ResourceImporter{
@@ -33,11 +34,16 @@ func resourceGroupServiceUser() *schema.Resource {
 			"service_user_ids": {
 				Type:     schema.TypeSet,
 				Required: true,
-				ForceNew: true,
 				MinItems: 1,
+				ForceNew: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
+			},
+			"bindings_hash": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: "SHA-256 of sorted, canonical service_user_ids.",
 			},
 		},
 	}
@@ -45,50 +51,105 @@ func resourceGroupServiceUser() *schema.Resource {
 
 func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
-
-	groupStr := d.Get("group_id").(string)
-	groupUUID, err := uuid.FromString(groupStr)
+	groupID := d.Get("group_id").(string)
+	groupUUID, err := uuid.FromString(groupID)
 	if err != nil {
-		return diag.Errorf("invalid group_id format: %s", err)
+		return diag.Errorf("invalid group_id: %s", err)
 	}
 
-	raw := d.Get("service_user_ids").(*schema.Set).List()
+	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	suUUIDs := make([]uuid.UUID, 0, len(raw))
-	for _, v := range raw {
-		s := v.(string)
-		u, err := uuid.FromString(s)
-		if err != nil {
-			return diag.Errorf("invalid service_user_id in list: %s", err)
+	serviceUsersList, err := c.IAMClient.GetAllGroupServiceUserList(c.WorkspaceUUID, &groupUUID)
+	if err != nil {
+		return diag.Errorf("read group service-users: %s", err)
+	}
+
+	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
+
+	for _, u := range serviceUsersList {
+		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+	}
+
+	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
+	toAddList := diff(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
+
+	if len(toAddList) > 0 {
+		uuids := make([]uuid.UUID, 0, len(toAddList))
+		for _, id := range toAddList {
+			uuid, _ := uuid.FromString(id)
+			uuids = append(uuids, uuid)
 		}
-		suUUIDs = append(suUUIDs, u)
-	}
 
-	if len(suUUIDs) > 0 {
-		if _, err := c.IAMClient.BulkAddServiceUsersToGroup(*c.WorkspaceUUID, groupUUID, suUUIDs); err != nil {
-			return diag.Errorf("failed to add service users to group %s: %s", groupUUID, err)
+		if _, err := c.IAMClient.BulkAddServiceUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+			return diag.Errorf("add service users to group %s: %s", groupID, err)
 		}
 	}
 
-	d.SetId(groupUUID.String() + ":" + uuid.NewV4().String())
+	bindHash := hashOfIDs(sortedServiceUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(groupUUID.String() + ":" + bindHash)
+
 	return resourceGroupServiceUserRead(ctx, d, meta)
 }
 
+func resourceGroupServiceUserUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	if !d.HasChange("service_user_ids") {
+		return nil
+	}
+
+	return resourceGroupServiceUserCreate(ctx, d, meta)
+}
+
 func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	tflog.Info(ctx, "Reading service user group", map[string]interface{}{"id": d.Id()})
+	c := meta.(*client.Client)
+
+	groupID := d.Get("group_id").(string)
+	groupUUID, err := uuid.FromString(groupID)
+	if err != nil {
+		d.SetId("")
+		return nil
+	}
+
+	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
+
+	serviceUsersList, err := c.IAMClient.GetAllGroupServiceUserList(c.WorkspaceUUID, &groupUUID)
+	if err != nil {
+		return diag.Errorf("read group service-users: %s", err)
+	}
+
+	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
+	for _, u := range serviceUsersList {
+		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+	}
+	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
+
+	eff := intersect(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
+	effective := uniqueSorted(setKeys(eff))
+
+	d.Set("service_user_ids", effective)
+
+	bindHash, _ := d.Get("bindings_hash").(string)
+	if bindHash == "" {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(groupUUID.String() + ":" + bindHash)
+
+	tflog.Info(ctx, "Read service-user group", map[string]interface{}{"group_id": groupID, "have": len(effective)})
+
 	return nil
 }
 
 func resourceGroupServiceUserDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
-	groupStr := d.Get("group_id").(string)
-	groupUUID, err := uuid.FromString(groupStr)
+	groupID := d.Get("group_id").(string)
+	groupUUID, err := uuid.FromString(groupID)
 	if err != nil {
-		return diag.Errorf("invalid group_id %q: %s", groupStr, err)
+		return diag.Errorf("invalid group_id %q: %s", groupID, err)
 	}
 
 	serviceUserIds := d.Get("service_user_ids").(*schema.Set).List()
-
 	for _, v := range serviceUserIds {
 		s := v.(string)
 		u, err := uuid.FromString(s)
@@ -103,12 +164,4 @@ func resourceGroupServiceUserDelete(ctx context.Context, d *schema.ResourceData,
 
 	d.SetId("")
 	return nil
-}
-
-func uuidsToStringSlice(in []uuid.UUID) []string {
-	out := make([]string, len(in))
-	for i, u := range in {
-		out[i] = u.String()
-	}
-	return out
 }

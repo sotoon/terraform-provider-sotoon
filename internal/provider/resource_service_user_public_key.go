@@ -27,22 +27,22 @@ func resourceServiceUserPublicKey() *schema.Resource {
 
 func resourceServiceUserPublicKeyCreateCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
-	suStr := d.Get("service_user_id").(string)
+	serviceUserID := d.Get("service_user_id").(string)
 	title := d.Get("title").(string)
 	key := d.Get("public_key").(string)
 
-	suID, err := uuid.FromString(suStr)
+	serviceUserUUID, err := uuid.FromString(serviceUserID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	pk, err := c.CreateServiceUserPublicKey(*c.WorkspaceUUID, suID, title, key)
+	pk, err := c.CreateServiceUserPublicKey(*c.WorkspaceUUID, serviceUserUUID, title, key)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 	if pk == nil || pk.UUID == nil {
 		return diag.Errorf("empty public key response")
 	}
-	d.SetId(fmt.Sprintf("%s/%s", suID.String(), pk.UUID.String()))
+	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), pk.UUID.String()))
 	return resourceServiceUserPublicKeyCreateRead(ctx, d, meta)
 }
 
@@ -67,7 +67,7 @@ func resourceServiceUserPublicKeyCreateRead(ctx context.Context, d *schema.Resou
 		d.SetId("")
 		return nil
 	}
-	_ = d.Set("service_user_id", suID.String())
+	d.Set("service_user_id", suID.String())
 	return nil
 }
 

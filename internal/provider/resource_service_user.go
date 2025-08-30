@@ -29,15 +29,15 @@ func resourceServiceUserCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	name := d.Get("name").(string)
 	description := d.Get("description").(string)
-	su, err := c.CreateServiceUser(name, description, c.WorkspaceUUID)
+	serviceUser, err := c.CreateServiceUser(name, description, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if su == nil || su.UUID == nil {
+	if serviceUser == nil || serviceUser.UUID == nil {
 		return diag.Errorf("empty service user response")
 	}
 
-	d.SetId(su.UUID.String())
+	d.SetId(serviceUser.UUID.String())
 	return resourceServiceUserRead(ctx, d, meta)
 }
 
@@ -57,7 +57,7 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.SetId("")
 		return nil
 	}
-	_ = d.Set("name", su.Name)
+	d.Set("name", su.Name)
 	return nil
 }
 

@@ -49,7 +49,7 @@ func dataSourceUserTokensRead(ctx context.Context, d *schema.ResourceData, meta 
 	ptr, err := c.GetAllMyUserTokenList()
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "not exists") {
-			list = []types.UserToken{} // no tokens → empty
+			list = []types.UserToken{}
 		} else if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
 			return diag.Errorf("forbidden: cannot list tokens: %s", err)
 		} else {

@@ -1,6 +1,11 @@
-resource "sotoon_iam_user_group_membership" "moein_dev_mng_membership" {
-  user_id = local.target_user_moein.id
-  group_ids = [local.target_group_developer.id , local.target_group_manager.id]
+resource "sotoon_iam_user_group_membership" "dev_group_members" {
+  group_id = local.target_group_developer.id
+  user_ids = [
+    local.target_user_moein.id,
+  ]
 
-  depends_on = [ sotoon_iam_user.moein , sotoon_iam_group.developer ]
+  depends_on = [
+    sotoon_iam_group.developer,
+    sotoon_iam_user.moein,
+  ]
 }

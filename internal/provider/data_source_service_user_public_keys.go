@@ -56,6 +56,6 @@ func dataSourceServiceUserPublicKeysRead(ctx context.Context, d *schema.Resource
 	}
 
 	d.SetId(suID.String())
-	_ = d.Set("public_keys", out)
+	d.Set("public_keys", out)
 	return nil
 }
