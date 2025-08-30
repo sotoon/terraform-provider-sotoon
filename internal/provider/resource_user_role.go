@@ -14,7 +14,6 @@ func resourceUserRole() *schema.Resource {
 		Description:   "Binds one or more users to a role within a Sotoon workspace (bulk).",
 		CreateContext: resourceUserRoleCreate,
 		ReadContext:   resourceUserRoleRead,
-		UpdateContext: resourceUserRoleUpdate,
 		DeleteContext: resourceUserRoleDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -131,13 +130,6 @@ func resourceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta inte
 	return nil
 }
 
-func resourceUserRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("user_ids") {
-		return nil
-	}
-	return resourceUserRoleCreate(ctx, d, meta)
-}
-
 func resourceUserRoleDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
@@ -147,8 +139,8 @@ func resourceUserRoleDelete(ctx context.Context, d *schema.ResourceData, meta in
 		return diag.Errorf("invalid role_id %q: %s", roleID, err)
 	}
 
-	raw := d.Get("user_ids").(*schema.Set).List()
-	for _, v := range raw {
+	users := d.Get("user_ids").(*schema.Set).List()
+	for _, v := range users {
 		u, err := uuid.FromString(v.(string))
 		if err != nil {
 			return diag.Errorf("invalid user_id in list: %s", err)

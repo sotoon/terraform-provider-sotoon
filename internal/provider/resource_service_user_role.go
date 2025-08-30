@@ -12,28 +12,31 @@ import (
 
 func resourceServiceUserRole() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Manages a role for a service user within a Sotoon workspace.",
 		CreateContext: resourceServiceUserRoleCreate,
-		UpdateContext: resourceServiceUserRoleUpdate,
 		ReadContext:   resourceServiceUserRoleRead,
 		DeleteContext: resourceServiceUserRoleDelete,
 		Schema: map[string]*schema.Schema{
 			"id": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
 			},
 			"service_user_ids": {
-				Type:     schema.TypeSet,
-				Required: true,
-				MinItems: 1,
-				ForceNew: true,
+				Type:        schema.TypeSet,
+				Required:    true,
+				MinItems:    1,
+				ForceNew:    true,
+				Description: "List of service user UUIDs to bind to the role.",
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
 			},
 			"role_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Role UUID.",
 			},
 			"bindings_hash": {
 				Type:        schema.TypeString,
@@ -82,13 +85,6 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 	d.SetId(roleUUID.String() + ":" + bindHash)
 
 	return resourceServiceUserRoleRead(ctx, d, meta)
-}
-
-func resourceServiceUserRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("service_user_ids") {
-		return nil
-	}
-	return resourceServiceUserRoleCreate(ctx, d, meta)
 }
 
 func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

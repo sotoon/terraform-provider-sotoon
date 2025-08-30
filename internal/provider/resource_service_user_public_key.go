@@ -13,19 +13,40 @@ import (
 
 func resourceServiceUserPublicKey() *schema.Resource {
 	return &schema.Resource{
-		CreateContext: resourceServiceUserPublicKeyCreateCreate,
-		ReadContext:   resourceServiceUserPublicKeyCreateRead,
-		DeleteContext: resourceServiceUserPublicKeyCreateDelete,
+		Description:   "Manages a public key for a service user within a Sotoon workspace.",
+		CreateContext: resourceServiceUserPublicKeyCreate,
+		ReadContext:   resourceServiceUserPublicKeyRead,
+		DeleteContext: resourceServiceUserPublicKeyDelete,
 		Schema: map[string]*schema.Schema{
-			"id":              {Type: schema.TypeString, Computed: true},
-			"service_user_id": {Type: schema.TypeString, Required: true, ForceNew: true},
-			"title":           {Type: schema.TypeString, Required: true, ForceNew: true},
-			"public_key":      {Type: schema.TypeString, Required: true, Sensitive: true, ForceNew: true},
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
+			},
+			"service_user_id": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Service User UUID.",
+			},
+			"title": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Title of the public key.",
+			},
+			"public_key": {
+				Type:        schema.TypeString,
+				Required:    true,
+				Sensitive:   true,
+				ForceNew:    true,
+				Description: "Public key to bind to the service user.",
+			},
 		},
 	}
 }
 
-func resourceServiceUserPublicKeyCreateCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceServiceUserPublicKeyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 	serviceUserID := d.Get("service_user_id").(string)
 	title := d.Get("title").(string)
@@ -43,10 +64,10 @@ func resourceServiceUserPublicKeyCreateCreate(ctx context.Context, d *schema.Res
 		return diag.Errorf("empty public key response")
 	}
 	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), pk.UUID.String()))
-	return resourceServiceUserPublicKeyCreateRead(ctx, d, meta)
+	return resourceServiceUserPublicKeyRead(ctx, d, meta)
 }
 
-func resourceServiceUserPublicKeyCreateRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceServiceUserPublicKeyRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 	suID, pkID, err := parseTwoPartID(d.Id())
 	if err != nil {
@@ -56,22 +77,20 @@ func resourceServiceUserPublicKeyCreateRead(ctx context.Context, d *schema.Resou
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	found := false
+
 	for _, pk := range list {
 		if pk != nil && pk.UUID != nil && pk.UUID.String() == pkID.String() {
-			found = true
-			break
+			d.Set("title", pk.Title)
+			d.Set("public_key", pk.PublicKey)
+			d.Set("service_user_id", suID.String())
+			return nil
 		}
 	}
-	if !found {
-		d.SetId("")
-		return nil
-	}
-	d.Set("service_user_id", suID.String())
+	d.SetId("")
 	return nil
 }
 
-func resourceServiceUserPublicKeyCreateDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func resourceServiceUserPublicKeyDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 	suID, pkID, err := parseTwoPartID(d.Id())
 	if err != nil {

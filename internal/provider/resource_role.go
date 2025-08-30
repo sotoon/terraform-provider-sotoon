@@ -86,15 +86,12 @@ func resourceRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interf
 		return diag.Errorf("invalid role ID %q: %s", id, err)
 	}
 
-	if d.HasChange("name") {
-		newName := d.Get("name").(string)
-		updated, err := c.UpdateRole(ctx, &roleUUID, newName)
-		if err != nil {
-			return diag.Errorf("failed to update role %q: %s", id, err)
-		}
-		d.SetId(updated.UUID.String())
+	newName := d.Get("name").(string)
+	updated, err := c.UpdateRole(ctx, &roleUUID, newName)
+	if err != nil {
+		return diag.Errorf("failed to update role %q: %s", id, err)
 	}
-
+	d.SetId(updated.UUID.String())
 	return resourceRoleRead(ctx, d, meta)
 }
 

@@ -14,34 +14,39 @@ import (
 
 func resourceServiceUserToken() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Manages a token for a service user within a Sotoon workspace.",
 		CreateContext: resourceServiceUserTokenCreate,
 		ReadContext:   resourceServiceUserTokenRead,
 		DeleteContext: resourceServiceUserTokenDelete,
 		Schema: map[string]*schema.Schema{
 			"id": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
 			},
 			"name": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "Name of the token.",
 			},
 			"expires_at": {
-				Type:     schema.TypeString,
-				Optional: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "Expiration time of the token in RFC3339 format.",
 			},
 			"service_user_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Service User UUID.",
 			},
 			"value": {
 				Type:        schema.TypeString,
 				Computed:    true,
 				Sensitive:   true,
-				Description: "The newly issued service user token value.",
+				Description: "The newly issued service user token value",
 			},
 		},
 	}
@@ -55,7 +60,6 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 	if err != nil {
 		return diag.FromErr(err)
 	}
-
 
 	name := d.Get("name").(string)
 
@@ -72,13 +76,10 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if tok == nil || tok.UUID == nil {
+	if tok == nil || tok.UUID == nil || tok.Secret == "" {
 		return diag.Errorf("empty token response")
 	}
 
-	if tok.Secret == "" {
-		return diag.Errorf("service user token secret not returned by API at creation time")
-	}
 	if err := d.Set("value", tok.Secret); err != nil {
 		return diag.Errorf("error setting token value: %s", err)
 	}
@@ -100,22 +101,18 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 		return diag.FromErr(err)
 	}
 
-	found := false
 	if list != nil {
 		for _, t := range *list {
 			if t.UUID != nil && t.UUID.String() == tokenID.String() {
-				found = true
-				break
+				d.Set("service_user_id", serviceUserID.String())
+				d.Set("name", t.Name)
+				d.Set("expires_at", t.ExpiresAt.Format(time.RFC3339))
+				return nil
 			}
 		}
 	}
-	if !found {
-		d.SetId("")
-		return nil
-	}
 
-	d.Set("service_user_id", serviceUserID.String())
-
+	d.SetId("")
 	return nil
 }
 
