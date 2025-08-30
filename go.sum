@@ -323,6 +323,8 @@ github.com/sotoon/iam-client v1.2.2 h1:oRL1/OXPSS4AE7QRoBNx433UjTC4lBQa5aWGpeqeS
 github.com/sotoon/iam-client v1.2.2/go.mod h1:TuV9B5Oc80LP6RzOt/JAkc7cMt9mp9WDm+oJTiNP9f0=
 github.com/sotoon/iam-client v1.2.3 h1:aZj01/mEgcqf09jNI2k2yAucO2cJGwHK8AfWzQNCfc0=
 github.com/sotoon/iam-client v1.2.3/go.mod h1:TuV9B5Oc80LP6RzOt/JAkc7cMt9mp9WDm+oJTiNP9f0=
+github.com/sotoon/iam-client v1.2.4 h1:DcPY+H9bqANzACCT+5p+kBijwH8fKgkp3XhlT1hVJn0=
+github.com/sotoon/iam-client v1.2.4/go.mod h1:TuV9B5Oc80LP6RzOt/JAkc7cMt9mp9WDm+oJTiNP9f0=
 github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72/go.mod h1:JwIasOWyU6f++ZhiEuf87xNszmSA2myDM2Kzu9HwQUA=
 github.com/spf13/afero v1.1.2 h1:m8/z1t7/fwjysjQRYbP0RD+bUIF/8tJwPdEZsI83ACI=
 github.com/spf13/afero v1.1.2/go.mod h1:j4pytiNVoe2o6bmDsKpLACNPDBIoEAkihy7loJ1B0CQ=
