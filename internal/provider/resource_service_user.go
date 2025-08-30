@@ -57,7 +57,7 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.SetId("")
 		return nil
 	}
-	_ = d.Set("name", su.Name)
+	d.Set("name", su.Name)
 	return nil
 }
 

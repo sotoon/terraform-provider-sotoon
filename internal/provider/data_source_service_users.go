@@ -53,6 +53,6 @@ func dataSourceServiceUsersRead(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	d.SetId(c.WorkspaceUUID.String())
-	_ = d.Set("users", out)
+	d.Set("users", out)
 	return nil
 }

@@ -67,7 +67,7 @@ func resourceServiceUserPublicKeyCreateRead(ctx context.Context, d *schema.Resou
 		d.SetId("")
 		return nil
 	}
-	_ = d.Set("service_user_id", suID.String())
+	d.Set("service_user_id", suID.String())
 	return nil
 }
 

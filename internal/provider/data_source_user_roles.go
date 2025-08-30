@@ -72,11 +72,15 @@ func dataSourceUserRolesRead(ctx context.Context, d *schema.ResourceData, meta i
 			"name": r.Name,
 		})
 	}
-
 	if err := d.Set("roles", roleList); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set roles: %w", err))
 	}
 
-	d.SetId(userUUID.String())
+	anchor := userUUID.String()
+	if c.WorkspaceUUID != nil {
+		anchor = fmt.Sprintf("%s:%s", c.WorkspaceUUID.String(), userUUID.String())
+	}
+
+	d.SetId("user-roles:" + anchor)
 	return nil
 }

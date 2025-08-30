@@ -25,6 +25,7 @@ func resourceServiceUserRole() *schema.Resource {
 				Type:     schema.TypeSet,
 				Required: true,
 				MinItems: 1,
+				ForceNew: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
@@ -76,14 +77,16 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 		}
 	}
 
-	d.SetId(roleUUID.String())
+	bindHash := hashOfIDs(sortedServiceUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(roleUUID.String() + ":" + bindHash)
 
 	return resourceServiceUserRoleRead(ctx, d, meta)
 }
 
 func resourceServiceUserRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if !d.HasChange("service_user_ids") {
-		return resourceServiceUserRoleRead(ctx, d, meta)
+		return nil
 	}
 	return resourceServiceUserRoleCreate(ctx, d, meta)
 }
@@ -114,11 +117,15 @@ func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, me
 	eff := intersect(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	_ = d.Set("service_user_ids", effective)
-	_ = d.Set("bindings_hash", hashOfIDs(effective))
-	if d.Id() == "" {
-		d.SetId(roleUUID.String())
+	d.Set("service_user_ids", effective)
+
+	bindHash, _ := d.Get("bindings_hash").(string)
+	if bindHash == "" {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
 	}
+
+	d.SetId(roleUUID.String() + ":" + bindHash)
 	return nil
 }
 

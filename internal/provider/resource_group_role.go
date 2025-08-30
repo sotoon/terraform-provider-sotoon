@@ -35,12 +35,11 @@ func resourceGroupRole() *schema.Resource {
 				Description: "Group UUID.",
 			},
 			"role_ids": {
-				Type:     schema.TypeSet,
-				Required: true,
-				MinItems: 1,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Type:        schema.TypeSet,
+				Required:    true,
+				MinItems:    1,
+				ForceNew:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
 				Description: "Set of Role UUIDs to bind to the group.",
 			},
 			"items": {
@@ -107,7 +106,9 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
-	d.SetId(groupUUID.String())
+	bindHash := hashOfIDs(sortedRoleIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	return resourceGroupRoleRead(ctx, d, meta)
 }
@@ -146,18 +147,24 @@ func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta int
 	eff := intersect(toSet(sortedRoleIds), toSet(remoteRoles))
 	effective := uniqueSorted(setKeys(eff))
 
-	_ = d.Set("role_ids", effective)
-	_ = d.Set("bindings_hash", hashOfIDs(effective))
-	d.SetId(groupUUID.String())
+	d.Set("role_ids", effective)
 
+	bindHash := d.Get("bindings_hash").(string)
+	if bindHash == "" {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(groupUUID.String() + ":" + bindHash)
 	tflog.Info(ctx, "Reading group role", map[string]interface{}{"id": d.Id(), "group_id": groupID, "have": len(effective)})
 	return nil
 }
 
 func resourceGroupRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("role_ids") {
-		return resourceGroupRoleRead(ctx, d, meta)
+	if !d.HasChange("user_ids") {
+		return nil
 	}
+
 	return resourceGroupRoleCreate(ctx, d, meta)
 }
 

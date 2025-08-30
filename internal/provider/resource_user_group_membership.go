@@ -37,6 +37,7 @@ func resourceUserGroupMembership() *schema.Resource {
 			"user_ids": {
 				Type:        schema.TypeSet,
 				Required:    true,
+				ForceNew:    true,
 				MinItems:    1,
 				Description: "A list of user UUIDs to add to the group.",
 				Elem: &schema.Schema{
@@ -85,14 +86,16 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 		}
 	}
 
-	d.SetId(groupUUID.String())
-	_ = d.Set("bindings_hash", hashOfIDs(sortedUserIds))
+	bindHash := hashOfIDs(sortedUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(groupUUID.String() + ":" + bindHash)
+
 	return resourceUserGroupMembershipRead(ctx, d, meta)
 }
 
 func resourceUserGroupMembershipUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if !d.HasChange("user_ids") {
-		return resourceUserGroupMembershipRead(ctx, d, meta)
+		return nil
 	}
 	c := meta.(*client.Client)
 
@@ -129,7 +132,6 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 	c := meta.(*client.Client)
 	groupID := d.Get("group_id").(string)
 	groupUUID, err := uuid.FromString(groupID)
-
 	if err != nil {
 		d.SetId("")
 		return nil
@@ -142,19 +144,24 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 		return diag.Errorf("read group users: %s", err)
 	}
 	remoteUsersID := make([]string, 0, len(usersList))
-
 	for _, u := range usersList {
 		remoteUsersID = append(remoteUsersID, u.UUID.String())
 	}
-
 	remoteUsersID = uniqueSorted(remoteUsersID)
 	eff := intersect(toSet(sortedUserIds), toSet(remoteUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	_ = d.Set("user_ids", effective)
-	_ = d.Set("bindings_hash", hashOfIDs(effective))
+	d.Set("user_ids", effective)
 
-	d.SetId(groupUUID.String())
+	bindHash := ""
+	if v, ok := d.GetOk("bindings_hash"); ok && v.(string) != "" {
+		bindHash = v.(string)
+	} else {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	tflog.Info(ctx, "Read user group membership", map[string]interface{}{"group_id": groupID, "have": len(effective)})
 	return nil

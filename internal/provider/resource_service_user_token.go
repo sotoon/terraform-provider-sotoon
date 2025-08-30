@@ -91,7 +91,7 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 		return nil
 	}
 
-	_ = d.Set("service_user_id", serviceUserID.String())
+	d.Set("service_user_id", serviceUserID.String())
 
 	return nil
 }

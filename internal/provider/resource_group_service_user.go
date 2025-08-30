@@ -35,6 +35,7 @@ func resourceGroupServiceUser() *schema.Resource {
 				Type:     schema.TypeSet,
 				Required: true,
 				MinItems: 1,
+				ForceNew: true,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
@@ -84,13 +85,16 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 		}
 	}
 
-	d.SetId(groupUUID.String())
+	bindHash := hashOfIDs(sortedServiceUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(groupUUID.String() + ":" + bindHash)
+
 	return resourceGroupServiceUserRead(ctx, d, meta)
 }
 
 func resourceGroupServiceUserUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if !d.HasChange("service_user_ids") {
-		return resourceGroupServiceUserRead(ctx, d, meta)
+		return nil
 	}
 
 	return resourceGroupServiceUserCreate(ctx, d, meta)
@@ -122,9 +126,15 @@ func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, m
 	eff := intersect(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	_ = d.Set("service_user_ids", effective)
-	_ = d.Set("bindings_hash", hashOfIDs(effective))
-	d.SetId(groupUUID.String())
+	d.Set("service_user_ids", effective)
+
+	bindHash, _ := d.Get("bindings_hash").(string)
+	if bindHash == "" {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	tflog.Info(ctx, "Read service-user group", map[string]interface{}{"group_id": groupID, "have": len(effective)})
 

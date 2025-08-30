@@ -34,6 +34,7 @@ func resourceUserRole() *schema.Resource {
 			"user_ids": {
 				Type:     schema.TypeSet,
 				Required: true,
+				ForceNew: true,
 				MinItems: 1,
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
@@ -81,7 +82,11 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 			return diag.Errorf("add users to role %s: %s", roleUUID, err)
 		}
 	}
-	d.SetId(roleUUID.String())
+
+	bindHash := hashOfIDs(sortedUserIds)
+	d.Set("bindings_hash", bindHash)
+	d.SetId(roleUUID.String() + ":" + bindHash)
+
 	return resourceUserRoleRead(ctx, d, meta)
 }
 
@@ -111,16 +116,24 @@ func resourceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta inte
 	eff := intersect(toSet(sortedUserIds), toSet(remoteUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	_ = d.Set("user_ids", effective)
-	_ = d.Set("bindings_hash", hashOfIDs(effective))
-	d.SetId(roleUUID.String())
+	d.Set("user_ids", effective)
+
+	bindHash := ""
+	if v, ok := d.GetOk("bindings_hash"); ok && v.(string) != "" {
+		bindHash = v.(string)
+	} else {
+		bindHash = hashOfIDs(effective)
+		d.Set("bindings_hash", bindHash)
+	}
+
+	d.SetId(roleUUID.String() + ":" + bindHash)
 
 	return nil
 }
 
 func resourceUserRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	if !d.HasChange("user_ids") {
-		return resourceUserRoleRead(ctx, d, meta)
+		return nil
 	}
 	return resourceUserRoleCreate(ctx, d, meta)
 }
