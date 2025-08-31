@@ -75,11 +75,14 @@ func resourceUserPublicKeyRead(ctx context.Context, d *schema.ResourceData, meta
 		return nil
 	}
 
-	_, err = c.GetOneDefaultUserPublicKey(&uid)
+	key, err := c.GetOneDefaultUserPublicKey(&uid)
 	if err != nil {
 		return diag.Errorf("error reading public-key %s: %s", id, err)
 	}
 
+	d.Set("title", key.Title)
+	d.Set("key_type", key.Type)
+	d.Set("public_key", key.PublicKey)
 	return nil
 }
 

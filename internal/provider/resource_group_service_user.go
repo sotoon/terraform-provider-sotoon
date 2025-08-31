@@ -15,7 +15,6 @@ func resourceGroupServiceUser() *schema.Resource {
 	return &schema.Resource{
 		Description:   "Binds service users to a group within a Sotoon workspace.",
 		CreateContext: resourceGroupServiceUserCreate,
-		UpdateContext: resourceGroupServiceUserUpdate,
 		ReadContext:   resourceGroupServiceUserRead,
 		DeleteContext: resourceGroupServiceUserDelete,
 		Importer: &schema.ResourceImporter{
@@ -23,22 +22,23 @@ func resourceGroupServiceUser() *schema.Resource {
 		},
 		Schema: map[string]*schema.Schema{
 			"id": {
-				Type:     schema.TypeString,
-				Computed: true,
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
 			},
 			"group_id": {
-				Type:     schema.TypeString,
-				Required: true,
-				ForceNew: true,
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Group UUID.",
 			},
 			"service_user_ids": {
-				Type:     schema.TypeSet,
-				Required: true,
-				MinItems: 1,
-				ForceNew: true,
-				Elem: &schema.Schema{
-					Type: schema.TypeString,
-				},
+				Type:        schema.TypeSet,
+				Required:    true,
+				MinItems:    1,
+				ForceNew:    true,
+				Elem:        &schema.Schema{Type: schema.TypeString},
+				Description: "Set of Service User UUIDs to bind to the group.",
 			},
 			"bindings_hash": {
 				Type:        schema.TypeString,
@@ -90,14 +90,6 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	return resourceGroupServiceUserRead(ctx, d, meta)
-}
-
-func resourceGroupServiceUserUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("service_user_ids") {
-		return nil
-	}
-
-	return resourceGroupServiceUserCreate(ctx, d, meta)
 }
 
 func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {

@@ -48,7 +48,7 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 	name := d.Get("name").(string)
 	description := d.Get("description").(string)
 
-	groups, err := c.GetWorkspaceGroups(ctx,c.WorkspaceUUID)
+	groups, err := c.GetWorkspaceGroups(ctx, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -72,7 +72,7 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 func resourceGroupRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	groups, err := c.GetWorkspaceGroups(ctx,c.WorkspaceUUID)
+	groups, err := c.GetWorkspaceGroups(ctx, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}

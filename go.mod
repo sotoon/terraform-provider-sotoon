@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.37.0
 	github.com/satori/go.uuid v1.2.0
-	github.com/sotoon/iam-client v1.2.3
+	github.com/sotoon/iam-client v1.2.5
 )
 
 require (

@@ -95,11 +95,12 @@ func resourceUserTokenRead(ctx context.Context, d *schema.ResourceData, meta int
 		return nil
 	}
 
-	_, err = c.GetMyUserToken(&tid)
+	token, err := c.GetMyUserToken(&tid)
 	if err != nil {
 		return diag.Errorf("error reading token %s: %s", id, err)
 	}
-
+	d.Set("name", token.Name)
+	d.Set("expire_at", token.ExpiresAt)
 	return nil
 }
 

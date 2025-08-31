@@ -17,7 +17,6 @@ func resourceUserGroupMembership() *schema.Resource {
 		Description:   "Manages the membership of a user in one or more IAM groups.",
 		CreateContext: resourceUserGroupMembershipCreate,
 		ReadContext:   resourceUserGroupMembershipRead,
-		UpdateContext: resourceUserGroupMembershipUpdate,
 		DeleteContext: resourceUserGroupMembershipDelete,
 		Importer: &schema.ResourceImporter{
 			StateContext: schema.ImportStatePassthroughContext,
@@ -90,41 +89,6 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 	d.Set("bindings_hash", bindHash)
 	d.SetId(groupUUID.String() + ":" + bindHash)
 
-	return resourceUserGroupMembershipRead(ctx, d, meta)
-}
-
-func resourceUserGroupMembershipUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("user_ids") {
-		return nil
-	}
-	c := meta.(*client.Client)
-
-	groupID := d.Get("group_id").(string)
-	groupUUID, _ := uuid.FromString(groupID)
-
-	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
-
-	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
-	if err != nil {
-		return diag.Errorf("read group users: %s", err)
-	}
-	remoteUsersID := make([]string, 0, len(usersList))
-	for _, u := range usersList {
-		remoteUsersID = append(remoteUsersID, u.UUID.String())
-	}
-	remoteUsersID = uniqueSorted(remoteUsersID)
-
-	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
-	if len(toAddList) > 0 {
-		uuids := make([]uuid.UUID, 0, len(toAddList))
-		for _, s := range toAddList {
-			u, _ := uuid.FromString(s)
-			uuids = append(uuids, u)
-		}
-		if _, err := c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
-			return diag.Errorf("add users to group %s: %s", groupID, err)
-		}
-	}
 	return resourceUserGroupMembershipRead(ctx, d, meta)
 }
 

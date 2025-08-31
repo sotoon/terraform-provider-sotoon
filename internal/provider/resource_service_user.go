@@ -12,14 +12,28 @@ import (
 
 func resourceServiceUser() *schema.Resource {
 	return &schema.Resource{
+		Description:   "Manages a service user within a Sotoon workspace.",
 		CreateContext: resourceServiceUserCreate,
 		ReadContext:   resourceServiceUserRead,
 		DeleteContext: resourceServiceUserDelete,
 		UpdateContext: resourceServiceUserUpdate,
 		Schema: map[string]*schema.Schema{
-			"id":          {Type: schema.TypeString, Computed: true},
-			"name":        {Type: schema.TypeString, Required: true},
-			"description": {Type: schema.TypeString, Optional: true},
+			"id": {
+				Type:        schema.TypeString,
+				Computed:    true,
+				Description: `Composite stable identifier. Does not affect lifecycle.`,
+			},
+			"name": {
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+				Description: "Name of the service user.",
+			},
+			"description": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Description of the service user.",
+			},
 		},
 	}
 }
@@ -58,26 +72,22 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 		return nil
 	}
 	d.Set("name", su.Name)
+	d.Set("description", su.Description)
 	return nil
 }
 
 func resourceServiceUserUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	if d.HasChange("name") || d.HasChange("description") {
-		id := d.Id()
-		u, err := uuid.FromString(id)
-		if err != nil {
-			return diag.FromErr(err)
-		}
-		name := d.Get("name").(string)
-		desc := ""
-		if v, ok := d.GetOk("description"); ok {
-			desc = v.(string)
-		}
-		if _, err := c.UpdateServiceUser(*c.WorkspaceUUID, u, name, desc); err != nil {
-			return diag.FromErr(err)
-		}
+	id := d.Id()
+	u, err := uuid.FromString(id)
+	if err != nil {
+		return diag.FromErr(err)
+	}
+	name := d.Get("name").(string)
+	desc := d.Get("description").(string)
+	if _, err := c.UpdateServiceUser(*c.WorkspaceUUID, u, name, desc); err != nil {
+		return diag.FromErr(err)
 	}
 
 	return resourceServiceUserRead(ctx, d, meta)

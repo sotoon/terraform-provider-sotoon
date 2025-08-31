@@ -16,7 +16,6 @@ func resourceGroupRole() *schema.Resource {
 	return &schema.Resource{
 		Description:   "Binds one or more IAM roles to a group within a Sotoon workspace.",
 		CreateContext: resourceGroupRoleCreate,
-		UpdateContext: resourceGroupRoleUpdate,
 		ReadContext:   resourceGroupRoleRead,
 		DeleteContext: resourceGroupRoleDelete,
 		Importer: &schema.ResourceImporter{
@@ -94,6 +93,7 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
+
 	toAddList := diff(toSet(sortedRoleIds), toSet(remoteRolesID))
 	if len(toAddList) > 0 {
 		rolesWithItems := make([]types.RoleWithItems, 0, len(toAddList))
@@ -158,14 +158,6 @@ func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta int
 	d.SetId(groupUUID.String() + ":" + bindHash)
 	tflog.Info(ctx, "Reading group role", map[string]interface{}{"id": d.Id(), "group_id": groupID, "have": len(effective)})
 	return nil
-}
-
-func resourceGroupRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	if !d.HasChange("user_ids") {
-		return nil
-	}
-
-	return resourceGroupRoleCreate(ctx, d, meta)
 }
 
 func resourceGroupRoleDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
