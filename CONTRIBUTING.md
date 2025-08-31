@@ -92,7 +92,7 @@ Acceptance tests may incur real changes in your Sotoon account. Use a test works
 ## Security
 
 Please **do not** report security vulnerabilities in public issues.
-Instead, email to ```moein.tavakoli@zurvun.com```
+Instead, email to ```terraform@sotoon.ir```
 
 ---
 
