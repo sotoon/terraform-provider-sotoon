@@ -1,0 +1,51 @@
+site_name: Terraform Provider Sotoon
+site_url: https://github.com/sotoon/terraform-provider-sotoon
+site_description: 'Documentation for the Terraform Sotoon Provider.'
+repo_url: https://github.com/sotoon/terraform-provider-sotoon
+repo_name: 'your-org/terraform-provider-sotoon'
+edit_uri: 'edit/main/docs/'
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: 'indigo'
+      accent: 'indigo'
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: 'indigo'
+      accent: 'indigo'
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - toc.integrate
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotation
+    - content.code.copy
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - admonition
+  - toc:
+      permalink: true
+
+nav:
+  - 'Home': 'index.md'
+  - 'Provider Resources':
+    - 'Instance': 'resources/instance.md'
+    - 'External IP': 'resources/external_ip.md'
+  - 'Data Sources':
+    - 'Instance': 'data-sources/instance.md'
+    - 'External IPs': 'data-sources/external_ips.md'
