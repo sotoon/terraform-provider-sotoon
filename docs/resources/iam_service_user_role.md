@@ -3,12 +3,12 @@
 page_title: "sotoon_iam_service_user_role Resource - sotoon"
 subcategory: ""
 description: |-
-  
+  Manages a role for a service user within a Sotoon workspace.
 ---
 
 # sotoon_iam_service_user_role (Resource)
 
-
+Manages a role for a service user within a Sotoon workspace.
 
 
 
@@ -17,9 +17,10 @@ description: |-
 
 ### Required
 
-- `role_id` (String)
-- `service_user_ids` (Set of String)
+- `role_id` (String) Role UUID.
+- `service_user_ids` (Set of String) List of service user UUIDs to bind to the role.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `bindings_hash` (String) SHA-256 of sorted, canonical service_user_ids.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.

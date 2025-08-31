@@ -17,9 +17,10 @@ Manages the membership of a user in one or more IAM groups.
 
 ### Required
 
-- `group_ids` (List of String) A list of group UUIDs to which the user will be added.
-- `user_id` (String) The UUID of the user to add to the groups.
+- `group_id` (String) The UUID of the group to add users to.
+- `user_ids` (Set of String) A list of user UUIDs to add to the group.
 
 ### Read-Only
 
-- `id` (String) A unique identifier for the membership resource.
+- `bindings_hash` (String) SHA-256 of sorted, canonical user_ids.
+- `id` (String) A stable identifier for this membership binding (group + users).

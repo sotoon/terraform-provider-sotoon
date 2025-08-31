@@ -17,9 +17,10 @@ Binds service users to a group within a Sotoon workspace.
 
 ### Required
 
-- `group_id` (String)
-- `service_user_ids` (Set of String)
+- `group_id` (String) Group UUID.
+- `service_user_ids` (Set of String) Set of Service User UUIDs to bind to the group.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `bindings_hash` (String) SHA-256 of sorted, canonical service_user_ids.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.

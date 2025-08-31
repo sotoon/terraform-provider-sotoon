@@ -3,12 +3,12 @@
 page_title: "sotoon_iam_service_user_public_key Resource - sotoon"
 subcategory: ""
 description: |-
-  
+  Manages a public key for a service user within a Sotoon workspace.
 ---
 
 # sotoon_iam_service_user_public_key (Resource)
 
-
+Manages a public key for a service user within a Sotoon workspace.
 
 
 
@@ -17,10 +17,10 @@ description: |-
 
 ### Required
 
-- `public_key` (String, Sensitive)
-- `service_user_id` (String)
-- `title` (String)
+- `public_key` (String, Sensitive) Public key to bind to the service user.
+- `service_user_id` (String) Service User UUID.
+- `title` (String) Title of the public key.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.

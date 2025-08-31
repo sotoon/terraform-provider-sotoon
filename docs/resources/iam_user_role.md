@@ -22,4 +22,5 @@ Binds one or more users to a role within a Sotoon workspace (bulk).
 
 ### Read-Only
 
-- `id` (String) Composite ID in the form "<role_uuid>;<user_uuid>[;<user_uuid>...]"
+- `bindings_hash` (String) SHA-256 of sorted user_ids. Changes when membership changes.
+- `id` (String) Stable identifier (anchor + hash).

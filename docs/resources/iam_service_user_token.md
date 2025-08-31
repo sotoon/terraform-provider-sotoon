@@ -3,12 +3,12 @@
 page_title: "sotoon_iam_service_user_token Resource - sotoon"
 subcategory: ""
 description: |-
-  
+  Manages a token for a service user within a Sotoon workspace.
 ---
 
 # sotoon_iam_service_user_token (Resource)
 
-
+Manages a token for a service user within a Sotoon workspace.
 
 
 
@@ -17,8 +17,14 @@ description: |-
 
 ### Required
 
-- `service_user_id` (String)
+- `service_user_id` (String) Service User UUID.
+
+### Optional
+
+- `expires_at` (String) Expiration time of the token in RFC3339 format.
+- `name` (String) Name of the token.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.
+- `value` (String, Sensitive) The newly issued service user token value

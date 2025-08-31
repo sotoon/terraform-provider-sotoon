@@ -3,12 +3,12 @@
 page_title: "sotoon_iam_service_user Resource - sotoon"
 subcategory: ""
 description: |-
-  
+  Manages a service user within a Sotoon workspace.
 ---
 
 # sotoon_iam_service_user (Resource)
 
-
+Manages a service user within a Sotoon workspace.
 
 
 
@@ -17,12 +17,12 @@ description: |-
 
 ### Required
 
-- `name` (String)
+- `name` (String) Name of the service user.
 
 ### Optional
 
-- `description` (String)
+- `description` (String) Description of the service user.
 
 ### Read-Only
 
-- `id` (String) The ID of this resource.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.

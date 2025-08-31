@@ -26,4 +26,5 @@ Binds one or more IAM roles to a group within a Sotoon workspace.
 
 ### Read-Only
 
-- `id` (String) Composite ID in the form "<group_uuid>;<role_uuid>[;<role_uuid>...]" (new) or "<group_uuid>/<role_uuid>" (legacy).
+- `bindings_hash` (String) SHA-256 of sorted, canonical role_ids. Changes when the set of roles changes.
+- `id` (String) Composite stable identifier. Does not affect lifecycle.
