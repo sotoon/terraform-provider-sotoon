@@ -78,3 +78,7 @@ When you are finished, destroy the created resources to avoid costs.
 ```shell
 terraform destroy
 ```
+
+## Contributing
+
+We welcome contributions! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines and instructions.
