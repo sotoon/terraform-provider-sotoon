@@ -106,7 +106,9 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 			if t.UUID != nil && t.UUID.String() == tokenID.String() {
 				d.Set("service_user_id", serviceUserID.String())
 				d.Set("name", t.Name)
-				d.Set("expires_at", t.ExpiresAt.Format(time.RFC3339))
+				if t.ExpiresAt != nil {
+					d.Set("expires_at", t.ExpiresAt.Format(time.RFC3339))
+				}
 				return nil
 			}
 		}
