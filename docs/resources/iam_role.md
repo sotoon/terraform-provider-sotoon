@@ -19,6 +19,10 @@ Manages an IAM role within a Sotoon workspace.
 
 - `name` (String) The name of the role.
 
+### Optional
+
+- `rules` (Set of String) List of rule UUIDs to attach to this role.
+
 ### Read-Only
 
 - `id` (String) The UUID of the role.
