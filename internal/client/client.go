@@ -358,8 +358,8 @@ func (c *Client) GetWorkspaceRoles(ctx context.Context) ([]*types.Role, error) {
 	return c.IAMClient.GetWorkspaceRoles(c.WorkspaceUUID)
 }
 
-func (c *Client) CreateRole(ctx context.Context, name string) (*types.Role, error) {
-	return c.IAMClient.CreateRole(name, c.WorkspaceUUID)
+func (c *Client) CreateRole(ctx context.Context, name, description string) (*types.RoleWithCompactWorkspace, error) {
+	return c.IAMClient.CreateRole(name, description, c.WorkspaceUUID)
 }
 
 func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*types.RoleRes, error) {

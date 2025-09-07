@@ -33,6 +33,11 @@ func resourceRole() *schema.Resource {
 				Required:    true,
 				Description: "The name of the role.",
 			},
+			"description": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "The description of the role.",
+			},
 			"rules": {
 				Type:        schema.TypeSet,
 				Optional:    true,
@@ -55,7 +60,7 @@ func resourceRoleCreate(ctx context.Context, d *schema.ResourceData, meta interf
 		return resourceRoleRead(ctx, d, meta)
 	}
 
-	created, err := c.CreateRole(ctx, name)
+	created, err := c.CreateRole(ctx, name, d.Get("description").(string))
 	if err != nil {
 		return diag.Errorf("failed to create role %q: %s", name, err)
 	}
