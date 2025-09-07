@@ -9,10 +9,10 @@ resource "sotoon_iam_user_public_key" "sotoon"{
   # Default Key type is RSA
 }
 
-resource "sotoon_iam_user_public_key" "sotoon_ed52"{
+resource "sotoon_iam_user_public_key" "sotoon_ed25519"{
   title = "sotoon-pc"
-  public_key = file("~/.ssh/id_rsa.pub")
-  key_type = "id_ed52"
+  public_key = file("~/.ssh/id_ed25519.pub")
+  key_type = "ssh-ed25519"
 }
 
 output "new_public_key_id" {
