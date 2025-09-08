@@ -14,7 +14,7 @@ import (
 
 func dataSourceRoles() *schema.Resource {
 	return &schema.Resource{
-		Description: "Fetches a list of IAM roles within a specific Sotoon workspace.",
+		Description: "Fetches a list of IAM roles within a specific Sotoon workspace and global roles.",
 		ReadContext: dataSourceRolesRead,
 		Schema: map[string]*schema.Schema{
 			"workspace_id": {
@@ -41,6 +41,25 @@ func dataSourceRoles() *schema.Resource {
 					},
 				},
 			},
+			"global_roles": {
+				Type:        schema.TypeList,
+				Computed:    true,
+				Description: "A list of global roles available to all workspaces.",
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"id": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The unique identifier for the global role.",
+						},
+						"name": {
+							Type:        schema.TypeString,
+							Computed:    true,
+							Description: "The name of the global role.",
+						},
+					},
+				},
+			},
 		},
 	}
 }
@@ -55,6 +74,7 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("Invalid workspace_id format: not a valid UUID: %s", err)
 	}
 
+	// Get workspace-specific roles
 	roles, err := c.GetWorkspaceRoles(ctx)
 	if err != nil {
 		if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
@@ -76,6 +96,31 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	if err := d.Set("roles", roleList); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set roles list: %w", err))
+	}
+
+	// Get global roles from the special workspace
+	globalWorkspaceUUID := GlobalWorkspaceUUID
+	originalWorkspaceUUID := *c.WorkspaceUUID
+	c.WorkspaceUUID = &globalWorkspaceUUID
+	globalRoles, err := c.IAMClient.GetWorkspaceRoles(&globalWorkspaceUUID)
+	if err != nil {
+		c.WorkspaceUUID = &originalWorkspaceUUID
+		tflog.Warn(ctx, "Failed to get global roles", map[string]interface{}{"error": err.Error()})
+		if err := d.Set("global_roles", []map[string]interface{}{}); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set empty global roles list: %w", err))
+		}
+	} else {
+		c.WorkspaceUUID = &originalWorkspaceUUID
+		globalRoleList := make([]map[string]interface{}, 0, len(globalRoles))
+		for _, role := range globalRoles {
+			globalRoleList = append(globalRoleList, map[string]interface{}{
+				"id":   role.UUID.String(),
+				"name": role.Name,
+			})
+		}
+		if err := d.Set("global_roles", globalRoleList); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set global roles list: %w", err))
+		}
 	}
 
 	d.SetId(workspaceID)
