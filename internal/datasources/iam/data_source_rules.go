@@ -11,6 +11,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
+	"github.com/sotoon/terraform-provider-sotoon/internal/common"
 )
 
 func DataSourceRules() *schema.Resource {
@@ -140,7 +141,7 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	// Get global rules from the special workspace
-	globalWorkspaceUUID := GlobalWorkspaceUUID
+	globalWorkspaceUUID := common.GlobalWorkspaceUUID
 
 	originalWorkspaceUUID := *c.WorkspaceUUID
 	c.WorkspaceUUID = &globalWorkspaceUUID

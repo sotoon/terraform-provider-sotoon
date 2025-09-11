@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	uuid "github.com/satori/go.uuid"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
+	"github.com/sotoon/terraform-provider-sotoon/internal/common"
 )
 
 func DataSourceRoles() *schema.Resource {
@@ -99,7 +100,7 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	// Get global roles from the special workspace
-	globalWorkspaceUUID := GlobalWorkspaceUUID
+	globalWorkspaceUUID := common.GlobalWorkspaceUUID
 	originalWorkspaceUUID := *c.WorkspaceUUID
 	c.WorkspaceUUID = &globalWorkspaceUUID
 	globalRoles, err := c.IAMClient.GetWorkspaceRoles(&globalWorkspaceUUID)
