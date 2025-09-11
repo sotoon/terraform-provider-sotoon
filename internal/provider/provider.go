@@ -2,9 +2,16 @@ package provider
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
+
+	// datasources
+	iamdatasources "github.com/sotoon/terraform-provider-sotoon/internal/datasources/iam"
+
+	// resources
+	iamresources "github.com/sotoon/terraform-provider-sotoon/internal/resources/iam"
 )
 
 // Provider defines the provider schema and configuration
@@ -38,37 +45,37 @@ func Provider() *schema.Provider {
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
-			"sotoon_iam_user":                    resourceUser(),
-			"sotoon_iam_group":                   resourceGroup(),
-			"sotoon_iam_user_token":              resourceUserToken(),
-			"sotoon_iam_user_public_key":         resourceUserPublicKey(),
-			"sotoon_iam_user_group_membership":   resourceUserGroupMembership(),
-			"sotoon_iam_group_role":              resourceGroupRole(),
-			"sotoon_iam_service_user_group":      resourceGroupServiceUser(),
-			"sotoon_iam_service_user":            resourceServiceUser(),
-			"sotoon_iam_service_user_token":      resourceServiceUserToken(),
-			"sotoon_iam_service_user_public_key": resourceServiceUserPublicKey(),
-			"sotoon_iam_service_user_role":       resourceServiceUserRole(),
-			"sotoon_iam_user_role":               resourceUserRole(),
-			"sotoon_iam_role":                    resourceRole(),
+			"sotoon_iam_user":                    iamresources.ResourceUser(),
+			"sotoon_iam_group":                   iamresources.ResourceGroup(),
+			"sotoon_iam_user_token":              iamresources.ResourceUserToken(),
+			"sotoon_iam_user_public_key":         iamresources.ResourceUserPublicKey(),
+			"sotoon_iam_user_group_membership":   iamresources.ResourceUserGroupMembership(),
+			"sotoon_iam_group_role":              iamresources.ResourceGroupRole(),
+			"sotoon_iam_service_user_group":      iamresources.ResourceGroupServiceUser(),
+			"sotoon_iam_service_user":            iamresources.ResourceServiceUser(),
+			"sotoon_iam_service_user_token":      iamresources.ResourceServiceUserToken(),
+			"sotoon_iam_service_user_public_key": iamresources.ResourceServiceUserPublicKey(),
+			"sotoon_iam_service_user_role":       iamresources.ResourceServiceUserRole(),
+			"sotoon_iam_user_role":               iamresources.ResourceUserRole(),
+			"sotoon_iam_role":                    iamresources.ResourceRole(),
 		},
 		DataSourcesMap: map[string]*schema.Resource{
-			"sotoon_iam_users":                    dataSourceUsers(),
-			"sotoon_iam_groups":                   dataSourceGroups(),
-			"sotoon_iam_user_tokens":              dataSourceUserTokens(),
-			"sotoon_iam_user_public_keys":         dataSourceUserPublicKeys(),
-			"sotoon_iam_group_users":              dataSourceGroupUsers(),
-			"sotoon_iam_group_details":            dataSourceGroupDetails(),
-			"sotoon_iam_group_roles":              dataSourceGroupRoles(),
-			"sotoon_iam_service_user_groups":      dataSourceGroupUserServices(),
-			"sotoon_iam_service_user_details":     dataSourceServiceUserDetails(),
-			"sotoon_iam_service_user_public_keys": dataSourceServiceUserPublicKeys(),
-			"sotoon_iam_service_user_tokens":      dataSourceServiceUserTokens(),
-			"sotoon_iam_service_users":            dataSourceServiceUsers(),
-			"sotoon_iam_roles":                    dataSourceRoles(),
-			"sotoon_iam_rules":                    dataSourceRules(),
-			"sotoon_iam_user_roles":               dataSourceUserRoles(),
-			"sotoon_iam_service_user_roles":       dataSourceServiceUserRoles(),
+			"sotoon_iam_users":                    iamdatasources.DataSourceUsers(),
+			"sotoon_iam_groups":                   iamdatasources.DataSourceGroups(),
+			"sotoon_iam_user_tokens":              iamdatasources.DataSourceUserTokens(),
+			"sotoon_iam_user_public_keys":         iamdatasources.DataSourceUserPublicKeys(),
+			"sotoon_iam_group_users":              iamdatasources.DataSourceGroupUsers(),
+			"sotoon_iam_group_details":            iamdatasources.DataSourceGroupDetails(),
+			"sotoon_iam_group_roles":              iamdatasources.DataSourceGroupRoles(),
+			"sotoon_iam_service_user_groups":      iamdatasources.DataSourceGroupUserServices(),
+			"sotoon_iam_service_user_details":     iamdatasources.DataSourceServiceUserDetails(),
+			"sotoon_iam_service_user_public_keys": iamdatasources.DataSourceServiceUserPublicKeys(),
+			"sotoon_iam_service_user_tokens":      iamdatasources.DataSourceServiceUserTokens(),
+			"sotoon_iam_service_users":            iamdatasources.DataSourceServiceUsers(),
+			"sotoon_iam_roles":                    iamdatasources.DataSourceRoles(),
+			"sotoon_iam_rules":                    iamdatasources.DataSourceRules(),
+			"sotoon_iam_user_roles":               iamdatasources.DataSourceUserRoles(),
+			"sotoon_iam_service_user_roles":       iamdatasources.DataSourceServiceUserRoles(),
 		},
 		ConfigureContextFunc: providerConfigure,
 	}
