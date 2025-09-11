@@ -4,7 +4,6 @@
 package testutil
 
 import (
-	"fmt"
 	"os"
 	"testing"
 
@@ -18,9 +17,10 @@ var ProviderFactories = map[string]func() (*schema.Provider, error){
 	"sotoon": func() (*schema.Provider, error) { return provider.Provider(), nil },
 }
 
+// TestAccPreCheck ensures required environment variables are set before running acceptance tests
 func TestAccPreCheck(t *testing.T) {
 	req := []string{"SOTOON_API_TOKEN", "SOTOON_WORKSPACE_ID", "SOTOON_API_HOST", "SOTOON_USER_ID"}
-	missing := []string{}
+	var missing []string
 	for _, k := range req {
 		if os.Getenv(k) == "" {
 			missing = append(missing, k)
@@ -31,24 +31,20 @@ func TestAccPreCheck(t *testing.T) {
 	}
 }
 
+// BaseProviderBlock returns the provider block without embedding secrets
+// The provider should read its configuration from environment variables instead.
 func BaseProviderBlock() string {
-	return fmt.Sprintf(`
-provider "sotoon" {
-  api_token    = "%s"
-  workspace_id = "%s"
-  api_host     = "%s"
-  user_id      = "%s"
-}
-`, os.Getenv("SOTOON_API_TOKEN"),
-		os.Getenv("SOTOON_WORKSPACE_ID"),
-		os.Getenv("SOTOON_API_HOST"),
-		os.Getenv("SOTOON_USER_ID"))
+	return `
+provider "sotoon" {}
+`
 }
 
+// RandEmail generates a unique email address for testing
 func RandEmail() string {
 	return "tf-acc-" + acctest.RandStringFromCharSet(10, acctest.CharSetAlphaNum) + "@example.test"
 }
 
+// RandName generates a unique resource name with the given prefix
 func RandName(prefix string) string {
 	return prefix + "-" + acctest.RandStringFromCharSet(8, acctest.CharSetAlphaNum)
 }
