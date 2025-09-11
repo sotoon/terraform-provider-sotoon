@@ -13,7 +13,7 @@ import (
 
 func TestAccDataSourceServiceUserPublicKeys_basic(t *testing.T) {
 	suName := testutil.RandName("tf-acc-su")
-	pubKey := "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ4rAgexMXRfB+ZzQpzKydKBTKSE5PTxvfVBa4J8uFLC alireza@Alirezas-MacBook-Air.local"
+	pubKey := "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC7kG7aZb1W9n3mX6Lw0N2Q7pPq3yZV7g5r8jL9z8lQmA9oJQqD4lX9nB5u2jC4t4h1uWq1Ff5rjM4cO2q9f3B8nT9pA7vC2hX info@mail.com"
 	title := "tf-acc-builder-key"
 
 	cfg := fmt.Sprintf(`
