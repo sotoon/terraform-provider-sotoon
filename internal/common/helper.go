@@ -11,6 +11,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
+// create sorted and unique array of uuids
 func UniqueSorted(in []string) []string {
 	if len(in) == 0 {
 		return []string{}
@@ -29,11 +30,13 @@ func UniqueSorted(in []string) []string {
 	return out
 }
 
+// creates a hash from array of uuids
 func HashOfIDs(ids []string) string {
 	h := sha256.Sum256([]byte(strings.Join(ids, ",")))
 	return hex.EncodeToString(h[:])
 }
 
+// read array of strings from schema
 func FromSchemaSetToStrings(s *schema.Set) []string {
 	if s == nil {
 		return nil
@@ -46,6 +49,7 @@ func FromSchemaSetToStrings(s *schema.Set) []string {
 	return out
 }
 
+// check if there is two ids, check string for uuid and then returns two values with possible errors
 func ParseTwoPartID(id string) (uuid.UUID, uuid.UUID, error) {
 	parts := strings.Split(id, "/")
 	if len(parts) != 2 {
