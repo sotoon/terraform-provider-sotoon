@@ -7,7 +7,7 @@ output "user_role_names" {
   value       = data.sotoon_iam_user_roles.target.roles.*.name
 }
 
-output "user_role_global_names" {
-  description = "All role names bound to the user."
-  value       = data.sotoon_iam_user_roles.target.global_roles.*.name
-}
+# output "user_role_global_names" {
+#   description = "All role names bound to the user."
+#   value       = data.sotoon_iam_user_roles.target.global_roles.*.name
+# }
