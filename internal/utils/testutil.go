@@ -1,4 +1,3 @@
-// internal/testutil/helpers.go
 //go:build acceptance
 // +build acceptance
 
