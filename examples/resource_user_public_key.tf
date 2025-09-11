@@ -11,7 +11,7 @@ resource "sotoon_iam_user_public_key" "sotoon"{
 
 resource "sotoon_iam_user_public_key" "sotoon_ed25519"{
   title = "sotoon-pc"
-  public_key = file("~/.ssh/id_ed25519-new.pub")
+  public_key = file("~/.ssh/id_rsa.pub")
   key_type = "ssh-ed25519"
 }
 
