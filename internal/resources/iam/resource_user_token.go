@@ -99,8 +99,12 @@ func resourceUserTokenRead(ctx context.Context, d *schema.ResourceData, meta int
 	if err != nil {
 		return diag.Errorf("error reading token %s: %s", id, err)
 	}
-	d.Set("name", token.Name)
-	d.Set("expire_at", token.ExpiresAt)
+	if err := d.Set("name", token.Name); err != nil {
+		return diag.Errorf("failed to set name: %s", err.Error())
+	}
+	if err := d.Set("expire_at", token.ExpiresAt); err != nil {
+		return diag.Errorf("failed to set expire_at: %s", err.Error())
+	}
 	return nil
 }
 

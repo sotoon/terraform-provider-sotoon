@@ -1,12 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -60,29 +57,6 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
 		IAMClient:      iam,
 	}, nil
-}
-
-// Helper function to create and send requests
-func (c *Client) sendComputeRequest(ctx context.Context, method, path string, payload interface{}) (*http.Response, error) {
-	var body io.Reader
-	if payload != nil {
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		body = bytes.NewBuffer(jsonPayload)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, c.ComputeBaseURL+path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	return c.HTTPClient.Do(req)
 }
 
 // --- IAM User Functions ---

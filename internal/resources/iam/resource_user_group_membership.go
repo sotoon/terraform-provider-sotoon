@@ -87,7 +87,9 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 	}
 
 	bindHash := common.HashOfIDs(sortedUserIds)
-	d.Set("bindings_hash", bindHash)
+	if err := d.Set("bindings_hash", bindHash); err != nil {
+		return diag.Errorf("failed to set bindings_hash: %s", err.Error())
+	}
 	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	return resourceUserGroupMembershipRead(ctx, d, meta)
@@ -115,15 +117,18 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 	remoteUsersID = common.UniqueSorted(remoteUsersID)
 	eff := common.Intersect(common.ToSet(sortedUserIds), common.ToSet(remoteUsersID))
 	effective := common.UniqueSorted(common.SetKeys(eff))
-
-	d.Set("user_ids", effective)
+	if err := d.Set("user_ids", effective); err != nil {
+		return diag.Errorf("failed to set user_ids: %s", err.Error())
+	}
 
 	bindHash := ""
 	if v, ok := d.GetOk("bindings_hash"); ok && v.(string) != "" {
 		bindHash = v.(string)
 	} else {
 		bindHash = common.HashOfIDs(effective)
-		d.Set("bindings_hash", bindHash)
+		if err := d.Set("bindings_hash", bindHash); err != nil {
+			return diag.Errorf("failed to set bindings_hash: %s", err.Error())
+		}
 	}
 
 	d.SetId(groupUUID.String() + ":" + bindHash)

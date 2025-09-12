@@ -79,10 +79,15 @@ func resourceUserPublicKeyRead(ctx context.Context, d *schema.ResourceData, meta
 	if err != nil {
 		return diag.Errorf("error reading public-key %s: %s", id, err)
 	}
-
-	d.Set("title", key.Title)
-	d.Set("key_type", key.Type)
-	d.Set("public_key", key.PublicKey)
+	if err := d.Set("title", key.Title); err != nil {
+		return diag.Errorf("failed to set title: %s", err.Error())
+	}
+	if err := d.Set("key_type", key.Type); err != nil {
+		return diag.Errorf("failed to set key_type: %s", err.Error())
+	}
+	if err := d.Set("public_key", key.PublicKey); err != nil {
+		return diag.Errorf("failed to set public_key: %s", err.Error())
+	}
 	return nil
 }
 

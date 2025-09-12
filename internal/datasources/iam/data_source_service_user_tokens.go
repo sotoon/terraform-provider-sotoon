@@ -53,6 +53,8 @@ func dataSourceServiceUserTokensRead(ctx context.Context, d *schema.ResourceData
 		}
 	}
 	d.SetId(suID.String())
-	d.Set("tokens", result)
+	if err := d.Set("tokens", result); err != nil {
+		return diag.Errorf("failed to set tokens: %s", err.Error())
+	}
 	return nil
 }

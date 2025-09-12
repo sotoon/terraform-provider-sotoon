@@ -81,9 +81,15 @@ func resourceServiceUserPublicKeyRead(ctx context.Context, d *schema.ResourceDat
 
 	for _, pk := range list {
 		if pk != nil && pk.UUID != nil && pk.UUID.String() == pkID.String() {
-			d.Set("title", pk.Title)
-			d.Set("public_key", pk.PublicKey)
-			d.Set("service_user_id", suID.String())
+			if err := d.Set("title", pk.Title); err != nil {
+				return diag.Errorf("failed to set title: %s", err.Error())
+			}
+			if err := d.Set("public_key", pk.PublicKey); err != nil {
+				return diag.Errorf("failed to set public_key: %s", err.Error())
+			}
+			if err := d.Set("service_user_id", suID.String()); err != nil {
+				return diag.Errorf("failed to set service_user_id: %s", err.Error())
+			}
 			return nil
 		}
 	}

@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [ main, master ]
+    branches: [ main, development ]
   push:
-    branches: [ main, master ]
+    branches: "**"
   workflow_dispatch: {}
 
 permissions:
@@ -31,11 +31,14 @@ jobs:
 
       - name: Go vet
         run: go vet ./...
+      
+      - name: Check Go version
+        run: go version
 
       - name: Lint (golangci-lint)
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          version: v1.64.2
           args: --timeout=5m
 
   acceptance:
@@ -56,5 +59,6 @@ jobs:
           go-version: "1.22"
           cache: true
       - name: Acceptance tests
+        if: env.SOTOON_API_TOKEN != ''
         run: |
           go test ./internal/provider -tags=acceptance -v -run '^TestAcc' -count=1 -timeout 60m -parallel 1

@@ -71,8 +71,12 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.SetId("")
 		return nil
 	}
-	d.Set("name", su.Name)
-	d.Set("description", su.Description)
+	if err := d.Set("name", su.Name); err != nil {
+		return diag.Errorf("failed to set name: %s", err.Error())
+	}
+	if err := d.Set("description", su.Description); err != nil {
+		return diag.Errorf("failed to set description: %s", err.Error())
+	}
 	return nil
 }
 
