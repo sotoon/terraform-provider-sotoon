@@ -102,14 +102,23 @@ func dataSourceGroupDetailsRead(ctx context.Context, d *schema.ResourceData, met
 	d.SetId(group.UUID.String())
 
 	if err := d.Set("name", group.Name); err != nil {
-    	return diag.Errorf("failed to set name: %s", err.Error())
+		return diag.Errorf("failed to set name: %s", err.Error())
 	}
-	d.Set("name", group.Name)
-	d.Set("description", group.Description)
-	d.Set("created_at", group.CreatedAt.Format(time.RFC3339))
-	d.Set("updated_at", group.UpdatedAt.Format(time.RFC3339))
-	d.Set("users_number", group.UsersNumber)
-	d.Set("service_users_number", group.ServiceUsersNumber)
+	if err := d.Set("description", group.Description); err != nil {
+		return diag.Errorf("failed to set description: %s", err.Error())
+	}
+	if err := d.Set("created_at", group.CreatedAt.Format(time.RFC3339)); err != nil {
+		return diag.Errorf("failed to set created_at: %s", err.Error())
+	}
+	if err := d.Set("updated_at", group.UpdatedAt.Format(time.RFC3339)); err != nil {
+		return diag.Errorf("failed to set updated_at: %s", err.Error())
+	}
+	if err := d.Set("users_number", group.UsersNumber); err != nil {
+		return diag.Errorf("failed to set users_number: %s", err.Error())
+	}
+	if err := d.Set("service_users_number", group.ServiceUsersNumber); err != nil {
+		return diag.Errorf("failed to set service_users_number: %s", err.Error())
+	}
 
 	roles := make([]map[string]interface{}, len(group.Roles))
 	for i, r := range group.Roles {
