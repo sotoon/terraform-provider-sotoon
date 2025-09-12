@@ -101,6 +101,9 @@ func dataSourceGroupDetailsRead(ctx context.Context, d *schema.ResourceData, met
 
 	d.SetId(group.UUID.String())
 
+	if err := d.Set("name", group.Name); err != nil {
+    	return diag.Errorf("failed to set name: %s", err.Error())
+	}
 	d.Set("name", group.Name)
 	d.Set("description", group.Description)
 	d.Set("created_at", group.CreatedAt.Format(time.RFC3339))
