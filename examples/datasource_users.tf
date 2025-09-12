@@ -7,10 +7,10 @@ output "all_user_emails" {
   value       = data.sotoon_iam_users.all.users.*.email
 }
 
-output "moein_user_id" {
+output "iam_user_id" {
   description = "The UUID for the user with the specified email."
   value = one([
-    for user in data.sotoon_iam_users.all.users : user.id if user.email == "moein.tavakoli@sotoon.ir"
+    for user in data.sotoon_iam_users.all.users : user.id if user.email == var.user_email
   ])
 }
 

@@ -29,3 +29,8 @@ variable "workspace_id_target" {
   description = "The target workspace ID"
   type        = string
 }
+
+variable "user_email" {
+  description = "Email address of the IAM user"
+  type        = string
+}

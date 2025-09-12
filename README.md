@@ -42,7 +42,7 @@ You can configure Terraform manually. Create or edit the Terraform CLI configura
 ```shell
 provider_installation {
   dev_overrides {
-    "sotoon/sotoon" = "/Users/moein/go/bin"
+    "sotoon/sotoon" = "path to go binary" # mac example: /Users/john/go/bin
   }
   direct {}
 }

@@ -1,7 +1,8 @@
 api_token     = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
 workspace_id = "your-workspace-id"
 user_id      = "your user id"
+user_email = "your ocean email"
 
 # ------------------------
-# Special varibale that used in users , groups , ... 
+# Special variable that used in users , groups , ... 
 workspace_id_target = "your-target-workspace-id"

@@ -1,5 +1,5 @@
 data "sotoon_iam_user_roles" "target" {
-  user_id = local.target_user_moein.id
+  user_id = local.target_user.id
 }
 
 output "user_role_names" {

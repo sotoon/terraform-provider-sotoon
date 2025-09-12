@@ -1,7 +1,7 @@
 locals {
 
-  target_user_moein = one([
-    for user in data.sotoon_iam_users.all.users : user if user.email == "moein.tavakoli@sotoon.ir"
+  target_user = one([
+    for user in data.sotoon_iam_users.all.users : user if user.email == var.user_email
   ])
 
   target_group_developer = one([
