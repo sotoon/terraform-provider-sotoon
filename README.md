@@ -57,14 +57,21 @@ This section shows a complete, runnable example.
 cd examples/
 ```
 
-2. Initialize Terraform:
+2. Set environment variables:
+
+```shell
+cp terraform.tfvars.example terraform.tfvars
+```
+set values from [ocean panel](https://ocean.sotoon.ir/iam/users)
+
+3. Initialize Terraform:
 
 This command downloads any other required providers and sets up the backend.
 ```shell
 terraform init
 ```
 
-3. Apply the configuration:
+4. Apply the configuration:
 
 This command will show you a plan of the resources to be created and prompt for confirmation.
 
@@ -72,7 +79,7 @@ This command will show you a plan of the resources to be created and prompt for 
 terraform apply
 ```
 
-4. Clean up resources:
+5. Clean up resources:
 
 When you are finished, destroy the created resources to avoid costs.
 ```shell
