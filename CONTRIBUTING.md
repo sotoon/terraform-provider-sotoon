@@ -77,6 +77,7 @@ Acceptance tests may incur real changes in your Sotoon account. Use a test works
     * `feat: add support for X`
     * `fix: resolve crash when Y`
     * `docs: update example for Z`
+    * `improve: rename variable i`
   * Include documentation and update `examples/` when relevant.
 
 ---
