@@ -56,6 +56,8 @@ func dataSourceServiceUserPublicKeysRead(ctx context.Context, d *schema.Resource
 	}
 
 	d.SetId(suID.String())
-	d.Set("public_keys", out)
+	if err := d.Set("public_keys", out); err != nil {
+		return diag.Errorf("failed to set public_keys: %s", err.Error())
+	}
 	return nil
 }

@@ -40,6 +40,8 @@ func dataSourceServiceUserDetailsRead(ctx context.Context, d *schema.ResourceDat
 	}
 
 	d.SetId(det.UUID.String())
-	d.Set("name", det.Name)
+	if err := d.Set("name", det.Name); err != nil {
+		return diag.Errorf("failed to set name: %s", err.Error())
+	}
 	return nil
 }

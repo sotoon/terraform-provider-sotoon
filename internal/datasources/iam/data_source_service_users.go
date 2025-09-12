@@ -53,6 +53,8 @@ func dataSourceServiceUsersRead(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	d.SetId(c.WorkspaceUUID.String())
-	d.Set("users", out)
+	if err := d.Set("users", out); err != nil {
+		return diag.Errorf("failed to set users: %s", err.Error())
+	}
 	return nil
 }

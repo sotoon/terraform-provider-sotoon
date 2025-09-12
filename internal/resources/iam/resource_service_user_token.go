@@ -105,10 +105,16 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 	if list != nil {
 		for _, t := range *list {
 			if t.UUID != nil && t.UUID.String() == tokenID.String() {
-				d.Set("service_user_id", serviceUserID.String())
-				d.Set("name", t.Name)
+				if err := d.Set("service_user_id", serviceUserID.String()); err != nil {
+					return diag.Errorf("failed to set service_user_id: %s", err.Error())
+				}
+				if err := d.Set("name", t.Name); err != nil {
+					return diag.Errorf("failed to set name: %s", err.Error())
+				}
 				if t.ExpiresAt != nil {
-					d.Set("expires_at", t.ExpiresAt.Format(time.RFC3339))
+					if err := d.Set("expires_at", t.ExpiresAt.Format(time.RFC3339)); err != nil {
+						return diag.Errorf("failed to set expires_at: %s", err.Error())
+					}
 				}
 				return nil
 			}

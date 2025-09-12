@@ -82,7 +82,9 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	bindHash := common.HashOfIDs(sortedServiceUserIds)
-	d.Set("bindings_hash", bindHash)
+	if err := d.Set("bindings_hash", bindHash); err != nil {
+		return diag.Errorf("failed to set bindings_hash: %s", err.Error())
+	}
 	d.SetId(roleUUID.String() + ":" + bindHash)
 
 	return resourceServiceUserRoleRead(ctx, d, meta)
@@ -114,12 +116,16 @@ func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, me
 	eff := common.Intersect(common.ToSet(sortedServiceUserIds), common.ToSet(remoteServiceUsersID))
 	effective := common.UniqueSorted(common.SetKeys(eff))
 
-	d.Set("service_user_ids", effective)
+	if err := d.Set("service_user_ids", effective); err != nil {
+		return diag.Errorf("failed to set service_user_ids: %s", err.Error())
+	}
 
 	bindHash, _ := d.Get("bindings_hash").(string)
 	if bindHash == "" {
 		bindHash = common.HashOfIDs(effective)
-		d.Set("bindings_hash", bindHash)
+		if err := d.Set("bindings_hash", bindHash); err != nil {
+			return diag.Errorf("failed to set bindings_hash: %s", err.Error())
+		}
 	}
 
 	d.SetId(roleUUID.String() + ":" + bindHash)
