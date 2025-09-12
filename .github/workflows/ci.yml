@@ -40,6 +40,8 @@ jobs:
         with:
           version: v1.59
           args: --timeout=5m
+        env:
+          PATH: ${{ runner.tool_cache }}/go/1.22.*/bin:${{ env.PATH }}
 
   acceptance:
     needs: build-and-lint
