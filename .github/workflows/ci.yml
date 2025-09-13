@@ -61,4 +61,4 @@ jobs:
       - name: Acceptance tests
         if: env.SOTOON_API_TOKEN != ''
         run: |
-          go test ./internal/provider -tags=acceptance -v -run '^TestAcc' -count=1 -timeout 60m -parallel 1
+          go test ./internal/... -tags=unit -v -run '^TestUnit' -count=1 -timeout 60m -parallel 1
