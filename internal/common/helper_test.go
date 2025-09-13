@@ -18,7 +18,7 @@ func TestUnitUniqueSortedRemoveDuplicatesStrings(t *testing.T) {
 	in := []string{"a", "b", "a"}
 	expect := []string{"a", "b"}
 
-	if got := UniqueSorted(in); reflect.DeepEqual(got, expect) {
+	if got := UniqueSorted(in); !reflect.DeepEqual(got, expect) {
 		t.Fatalf("UniqueSorted expect return %q but returned %q", expect, got)
 	}
 }
