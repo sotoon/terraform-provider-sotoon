@@ -44,13 +44,15 @@ jobs:
   test:
     needs: build-and-lint
     runs-on: ubuntu-latest
-    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
           go-version: "1.22"
           cache: true
+
       - name: unit tests
         run: |
           go test ./internal/... -tags=unit -v -run '^TestUnit' -count=1 -timeout 60m -parallel 1
