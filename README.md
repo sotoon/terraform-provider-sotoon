@@ -116,31 +116,15 @@ export SOTOON_API_HOST="https://bepa.sotoon.ir"
 
 > 💡 Tip: You can put these into your shell profile (`~/.bashrc`, `~/.zshrc`) to avoid retyping.
 
-## Running Acceptance Tests
+## Running Unit Tests
 
-To run all acceptance tests:
+To run all unit tests:
 
 ```bash
-go test ./internal/... -v -tags=acceptance -run ^TestAcc -count=1
+go test ./internal/... -tags=unit -v -run '^TestUnit' -count=1
 ```
 
 - `-v` → verbose output  
-- `-tags=acceptance` → ensures only acceptance tests run  
-- `-run ^TestAcc` → filters tests to only those starting with `TestAcc`  
+- `-tags=unit` → ensures only unit tests run  
+- `-run ^TestUnit` → filters tests to only those starting with `TestUnit`  
 - `-count=1` → disables test result caching  
-
-## Example (all in one command)
-
-If you prefer, you can run everything in one line without exporting variables separately:
-
-```bash
-TF_ACC=1 \
-SOTOON_API_TOKEN="your-api-token" \
-SOTOON_WORKSPACE_ID="your-workspace-id" \
-SOTOON_USER_ID="your-user-id" \
-SOTOON_API_HOST="https://bepa.sotoon.ir" \
-go test ./internal/... -v -tags=acceptance -run ^TestAcc -count=1
-```
-
-⚠️ **Important:** These tests create and destroy real resources.  
-Make sure you’re okay with changes happening in your Sotoon workspace.

@@ -41,24 +41,18 @@ jobs:
           version: v1.64.2
           args: --timeout=5m
 
-  acceptance:
+  test:
     needs: build-and-lint
-    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
-    env:
-      TF_ACC: "1"
-      SOTOON_API_TOKEN:    ${{ secrets.SOTOON_API_TOKEN }}
-      SOTOON_WORKSPACE_ID: ${{ secrets.SOTOON_WORKSPACE_ID }}
-      SOTOON_USER_ID:      ${{ secrets.SOTOON_USER_ID }}
-      SOTOON_API_HOST:     ${{ secrets.SOTOON_API_HOST }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache: true
-      - name: Acceptance tests
-        if: env.SOTOON_API_TOKEN != ''
+          cache: false
+
+      - name: unit tests
         run: |
-          go test ./internal/provider -tags=acceptance -v -run '^TestAcc' -count=1 -timeout 60m -parallel 1
+          go test ./internal/... -tags=unit -v -run '^TestUnit' -count=1 -timeout 60m -parallel 1
