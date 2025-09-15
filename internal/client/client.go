@@ -14,6 +14,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	uuid "github.com/satori/go.uuid"
 	iamclient "github.com/sotoon/iam-client/pkg/client"
+	"github.com/sotoon/iam-client/pkg/client/interceptor"
+	"github.com/sotoon/iam-client/pkg/models"
 	"github.com/sotoon/iam-client/pkg/types"
 )
 
@@ -37,16 +39,43 @@ type Client struct {
 	IAMClient      iamclient.Client
 }
 
+type retryClient struct {
+	maxRetries int
+}
+
+func (c *retryClient) ShouldRetry(resp *http.Response, err error, data interceptor.RetryInternalData) (bool, error) {
+	if data.RetryCount >= c.maxRetries {
+		if err != nil {
+			return false, err
+		}
+		return false, errors.Join(models.ErrMaxRetriesExceeded, fmt.Errorf("faced status code %d", resp.StatusCode))
+	}
+	if resp.StatusCode == http.StatusTooManyRequests {
+		return true, nil
+	}
+	return false, nil
+}
+
 // NewClient creates a new unified API client for both Compute and IAM.
 func NewClient(host, token, workspace, userID string) (*Client, error) {
 	if host == "" || token == "" || workspace == "" || userID == "" {
 		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
 
-	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace, userID, 2)
+	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace, userID, iamclient.DEBUG)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
 	}
+
+	iam.AddInterceptor(interceptor.NewCircuitBreakerInterceptor(interceptor.CircuteBreakerForJust429, false))
+	iam.AddInterceptor(
+		interceptor.NewRetryInterceptor(
+			iam,
+			interceptor.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
+			&retryClient{maxRetries: 15},
+		),
+	)
+
 	workspaceUUID, err := uuid.FromString(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("invalid workspace_uuid format: %w", err)
@@ -241,6 +270,14 @@ func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, d
 	return nil
 }
 
+func (c *Client) GetAllGroupUserList(ctx context.Context, groupUUID *uuid.UUID) ([]*types.User, error) {
+	return c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, groupUUID)
+}
+
+func (c *Client) BulkAddUsersToGroup(ctx context.Context, groupUUID uuid.UUID, uuids []uuid.UUID) ([]*types.GroupUser, error) {
+	return c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids)
+}
+
 func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
 	tflog.Debug(ctx, "Attempting to remove user from group", map[string]interface{}{"userID": userID, "groupID": groupID})
 
@@ -392,6 +429,18 @@ func (c *Client) GetRoleRules(ctx context.Context, roleUUID *uuid.UUID) ([]*type
 
 func (c *Client) UnbindRuleFromRole(ctx context.Context, roleUUID *uuid.UUID, ruleUUID *uuid.UUID) error {
 	return c.IAMClient.UnbindRuleFromRole(roleUUID, ruleUUID, c.WorkspaceUUID)
+}
+
+func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]*types.User, error) {
+	return c.IAMClient.GetRoleUsers(roleUUID, c.WorkspaceUUID)
+}
+
+func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []uuid.UUID) error {
+	return c.IAMClient.BulkAddUsersToRole(*c.WorkspaceUUID, roleUUID, uuids)
+}
+
+func (c *Client) UnbindRoleFromUser(ctx context.Context, roleUUID *uuid.UUID, userUUID *uuid.UUID, items map[string]string) error {
+	return c.IAMClient.UnbindRoleFromUser(roleUUID, userUUID, c.WorkspaceUUID, items)
 }
 
 // --- IAM Rule Functions ---

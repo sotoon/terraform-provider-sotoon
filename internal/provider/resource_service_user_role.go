@@ -57,7 +57,7 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.IAMClient.GetRoleServiceUsers(c.WorkspaceUUID, &roleUUID)
+	serviceUsersList, err := c.GetRoleServiceUsers(&roleUUID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.Errorf("read service-users of role: %s", err)
 	}
@@ -75,7 +75,7 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 			uuid, _ := uuid.FromString(id)
 			uuids = append(uuids, uuid)
 		}
-		if err := c.IAMClient.BulkAddServiceUsersToRole(*c.WorkspaceUUID, roleUUID, uuids); err != nil {
+		if err := c.BulkAddServiceUsersToRole(*c.WorkspaceUUID, roleUUID, uuids); err != nil {
 			return diag.Errorf("add service users to role %s: %s", roleUUID, err)
 		}
 	}
@@ -99,7 +99,7 @@ func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, me
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.IAMClient.GetRoleServiceUsers(c.WorkspaceUUID, &roleUUID)
+	serviceUsersList, err := c.GetRoleServiceUsers(&roleUUID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.Errorf("read service-users of role %s: %s", roleUUID, err)
 	}

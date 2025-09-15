@@ -60,7 +60,7 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 
 	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
 
-	usersList, err := c.IAMClient.GetRoleUsers(&roleUUID, c.WorkspaceUUID)
+	usersList, err := c.GetRoleUsers(ctx, &roleUUID)
 	if err != nil {
 		return diag.Errorf("read users of role: %s", err)
 	}
@@ -77,7 +77,7 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 			uuid, _ := uuid.FromString(id)
 			uuids = append(uuids, uuid)
 		}
-		if err := c.IAMClient.BulkAddUsersToRole(*c.WorkspaceUUID, roleUUID, uuids); err != nil {
+		if err := c.BulkAddUsersToRole(ctx, roleUUID, uuids); err != nil {
 			return diag.Errorf("add users to role %s: %s", roleUUID, err)
 		}
 	}
@@ -101,7 +101,7 @@ func resourceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta inte
 
 	sortedUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
 
-	usersList, err := c.IAMClient.GetRoleUsers(&roleUUID, c.WorkspaceUUID)
+	usersList, err := c.GetRoleUsers(ctx, &roleUUID)
 	if err != nil {
 		return diag.Errorf("read users of role %s: %s", roleUUID, err)
 	}
@@ -145,7 +145,7 @@ func resourceUserRoleDelete(ctx context.Context, d *schema.ResourceData, meta in
 		if err != nil {
 			return diag.Errorf("invalid user_id in list: %s", err)
 		}
-		if err := c.IAMClient.UnbindRoleFromUser(c.WorkspaceUUID, &roleUUID, &u, map[string]string{}); err != nil {
+		if err := c.UnbindRoleFromUser(ctx, &roleUUID, &u, map[string]string{}); err != nil {
 			return diag.Errorf("unbind user %s from role %s failed: %s", u.String(), roleUUID.String(), err)
 		}
 	}

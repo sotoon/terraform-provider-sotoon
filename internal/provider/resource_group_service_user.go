@@ -59,7 +59,7 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.IAMClient.GetAllGroupServiceUserList(c.WorkspaceUUID, &groupUUID)
+	serviceUsersList, err := c.GetAllGroupServiceUserList(context.Background(), c.WorkspaceUUID, &groupUUID)
 	if err != nil {
 		return diag.Errorf("read group service-users: %s", err)
 	}
@@ -80,7 +80,7 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 			uuids = append(uuids, uuid)
 		}
 
-		if _, err := c.IAMClient.BulkAddServiceUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+		if _, err := c.BulkAddServiceUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
 			return diag.Errorf("add service users to group %s: %s", groupID, err)
 		}
 	}
@@ -104,7 +104,7 @@ func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, m
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.IAMClient.GetAllGroupServiceUserList(c.WorkspaceUUID, &groupUUID)
+	serviceUsersList, err := c.GetAllGroupServiceUserList(context.Background(), c.WorkspaceUUID, &groupUUID)
 	if err != nil {
 		return diag.Errorf("read group service-users: %s", err)
 	}
