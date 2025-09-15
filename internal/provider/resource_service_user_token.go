@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	uuid "github.com/satori/go.uuid"
+	"github.com/sotoon/iam-client/pkg/models"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -97,8 +98,8 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 	}
 
 	list, err := c.GetWorkspaceServiceUserTokenList(&serviceUserID, c.WorkspaceUUID)
-	if err != nil {
-		return diag.FromErr(err)
+	if err != nil && err.Error() != models.ErrNotFound.Error() {
+		return diag.FromErr(fmt.Errorf("failed to get service user token list: %w", err))
 	}
 
 	if list != nil {

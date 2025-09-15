@@ -144,7 +144,7 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	originalWorkspaceUUID := *c.WorkspaceUUID
 	c.WorkspaceUUID = &globalWorkspaceUUID
-	globalRules, err := c.IAMClient.GetWorkspaceRules(&globalWorkspaceUUID)
+	globalRules, err := c.GetWorkspaceRules(context.Background())
 	if err != nil {
 		c.WorkspaceUUID = &originalWorkspaceUUID
 		tflog.Warn(ctx, "Failed to get global rules", map[string]interface{}{"error": err.Error()})

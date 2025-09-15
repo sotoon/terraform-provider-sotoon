@@ -102,7 +102,7 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	globalWorkspaceUUID := GlobalWorkspaceUUID
 	originalWorkspaceUUID := *c.WorkspaceUUID
 	c.WorkspaceUUID = &globalWorkspaceUUID
-	globalRoles, err := c.IAMClient.GetWorkspaceRoles(&globalWorkspaceUUID)
+	globalRoles, err := c.GetWorkspaceRoles(ctx)
 	if err != nil {
 		c.WorkspaceUUID = &originalWorkspaceUUID
 		tflog.Warn(ctx, "Failed to get global roles", map[string]interface{}{"error": err.Error()})
