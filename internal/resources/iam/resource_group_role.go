@@ -69,9 +69,9 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	sortedRoleIds := common.UniqueSorted(common.FromSchemaSetToStrings(d.Get("role_ids").(*schema.Set)))
 
-	rolesList, err := c.GetWorkspaceGroupRoleList(ctx, &groupUUID, c.WorkspaceUUID)
+	rolesList, err := c.GetWorkspaceGroupRoleList(ctx, c.WorkspaceUUID, &groupUUID)
 	if err != nil {
-		return diag.Errorf("read group roles: %s", err)
+		return diag.Errorf("read group roles: %s ", err)
 	}
 	remoteRolesID := make([]string, 0, len(rolesList))
 	for _, r := range rolesList {
@@ -127,9 +127,9 @@ func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	sortedRoleIds := common.UniqueSorted(common.FromSchemaSetToStrings(d.Get("role_ids").(*schema.Set)))
 
-	rolesList, err := c.GetWorkspaceGroupRoleList(ctx, &groupUUID, c.WorkspaceUUID)
+	rolesList, err := c.GetWorkspaceGroupRoleList(ctx, c.WorkspaceUUID, &groupUUID)
 	if err != nil {
-		return diag.Errorf("error reading group role %s: %s", groupID, err)
+		return diag.Errorf("error reading group role: %s", err)
 	}
 
 	remoteRoles := make([]string, 0, len(rolesList))
