@@ -94,7 +94,7 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 		}
 	}
 
-	toAddList := diff(toSet(sortedRoleIds), toSet(remoteRolesID))
+	toAddList := common.Diff(common.ToSet(sortedRoleIds), common.ToSet(remoteRolesID))
 	if len(toAddList) > 0 {
 		rolesWithItems := make([]types.RoleWithItems, 0, len(toAddList))
 		for _, id := range toAddList {
