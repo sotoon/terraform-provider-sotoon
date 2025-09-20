@@ -64,7 +64,7 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 
 	sortedUserIds := common.UniqueSorted(common.FromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
 
-	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
+	usersList, err := c.GetAllGroupUserList(ctx, &groupUUID)
 	if err != nil {
 		return diag.Errorf("read group users: %s", err)
 	}
@@ -81,7 +81,7 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 			uuid, _ := uuid.FromString(id)
 			uuids = append(uuids, uuid)
 		}
-		if _, err := c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+		if _, err := c.BulkAddUsersToGroup(ctx, groupUUID, uuids); err != nil {
 			return diag.Errorf("add users to group %s: %s", groupID, err)
 		}
 	}
@@ -106,7 +106,7 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 
 	sortedUserIds := common.UniqueSorted(common.FromSchemaSetToStrings(d.Get("user_ids").(*schema.Set)))
 
-	usersList, err := c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, &groupUUID)
+	usersList, err := c.GetAllGroupUserList(ctx, &groupUUID)
 	if err != nil {
 		return diag.Errorf("read group users: %s", err)
 	}
