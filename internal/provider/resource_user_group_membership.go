@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -86,7 +87,9 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 	}
 
 	bindHash := hashOfIDs(sortedUserIds)
-	d.Set("bindings_hash", bindHash)
+	if err := d.Set("bindings_hash", bindHash); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+	}
 	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	return resourceUserGroupMembershipRead(ctx, d, meta)
@@ -115,14 +118,18 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 	eff := intersect(toSet(sortedUserIds), toSet(remoteUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	d.Set("user_ids", effective)
+	if err := d.Set("user_ids", effective); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set user_ids: %w", err))
+	}
 
 	bindHash := ""
 	if v, ok := d.GetOk("bindings_hash"); ok && v.(string) != "" {
 		bindHash = v.(string)
 	} else {
 		bindHash = hashOfIDs(effective)
-		d.Set("bindings_hash", bindHash)
+		if err := d.Set("bindings_hash", bindHash); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+		}
 	}
 
 	d.SetId(groupUUID.String() + ":" + bindHash)

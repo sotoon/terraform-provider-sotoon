@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -112,7 +113,9 @@ func resourceRoleRead(ctx context.Context, d *schema.ResourceData, meta interfac
 		return diag.FromErr(err)
 	}
 
-	d.Set("name", res.Name)
+	if err := d.Set("name", res.Name); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
+	}
 
 	// Get rules attached to this role
 	rules, err := c.GetRoleRules(ctx, &roleUUID)
@@ -127,7 +130,9 @@ func resourceRoleRead(ctx context.Context, d *schema.ResourceData, meta interfac
 		for _, rule := range rules {
 			ruleIDs = append(ruleIDs, rule.UUID.String())
 		}
-		d.Set("rules", ruleIDs)
+		if err := d.Set("rules", ruleIDs); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set rules: %w", err))
+		}
 	}
 
 	return nil
