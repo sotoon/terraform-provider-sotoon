@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -53,6 +54,8 @@ func dataSourceServiceUsersRead(ctx context.Context, d *schema.ResourceData, met
 	}
 
 	d.SetId(c.WorkspaceUUID.String())
-	d.Set("users", out)
+	if err := d.Set("users", out); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set users: %w", err))
+	}
 	return nil
 }

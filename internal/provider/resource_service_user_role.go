@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -81,7 +82,9 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 	}
 
 	bindHash := hashOfIDs(sortedServiceUserIds)
-	d.Set("bindings_hash", bindHash)
+	if err := d.Set("bindings_hash", bindHash); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+	}
 	d.SetId(roleUUID.String() + ":" + bindHash)
 
 	return resourceServiceUserRoleRead(ctx, d, meta)
@@ -113,12 +116,16 @@ func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, me
 	eff := intersect(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
 	effective := uniqueSorted(setKeys(eff))
 
-	d.Set("service_user_ids", effective)
+	if err := d.Set("service_user_ids", effective); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set service_user_ids: %w", err))
+	}
 
 	bindHash, _ := d.Get("bindings_hash").(string)
 	if bindHash == "" {
 		bindHash = hashOfIDs(effective)
-		d.Set("bindings_hash", bindHash)
+		if err := d.Set("bindings_hash", bindHash); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+		}
 	}
 
 	d.SetId(roleUUID.String() + ":" + bindHash)

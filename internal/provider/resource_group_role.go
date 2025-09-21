@@ -106,7 +106,9 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 
 	bindHash := hashOfIDs(sortedRoleIds)
-	d.Set("bindings_hash", bindHash)
+	if err := d.Set("bindings_hash", bindHash); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+	}
 	d.SetId(groupUUID.String() + ":" + bindHash)
 
 	return resourceGroupRoleRead(ctx, d, meta)
@@ -146,12 +148,16 @@ func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta int
 	eff := intersect(toSet(sortedRoleIds), toSet(remoteRoles))
 	effective := uniqueSorted(setKeys(eff))
 
-	d.Set("role_ids", effective)
+	if err := d.Set("role_ids", effective); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set role_ids: %w", err))
+	}
 
 	bindHash := d.Get("bindings_hash").(string)
 	if bindHash == "" {
 		bindHash = hashOfIDs(effective)
-		d.Set("bindings_hash", bindHash)
+		if err := d.Set("bindings_hash", bindHash); err != nil {
+			return diag.FromErr(fmt.Errorf("failed to set bindings_hash: %w", err))
+		}
 	}
 
 	d.SetId(groupUUID.String() + ":" + bindHash)
