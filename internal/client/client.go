@@ -91,29 +91,6 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 	}, nil
 }
 
-// Helper function to create and send requests
-func (c *Client) sendComputeRequest(ctx context.Context, method, path string, payload interface{}) (*http.Response, error) {
-	var body io.Reader
-	if payload != nil {
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			return nil, err
-		}
-		body = bytes.NewBuffer(jsonPayload)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, c.ComputeBaseURL+path, body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.APIToken)
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json")
-
-	return c.HTTPClient.Do(req)
-}
-
 // --- IAM User Functions ---
 
 func (c *Client) InviteUser(ctx context.Context, email string) (*types.InvitationInfo, error) {
