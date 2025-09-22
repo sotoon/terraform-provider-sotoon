@@ -86,6 +86,24 @@ To run unit tests locally:
 
 ```shell
 go test ./internal/provider/... -tags=unit -v -run '^TestUnit'
+
+## Example `terraform.tfvars`
+
+Copy the example file before customizing:
+
+```shell
+cp examples/terraform.tfvars.example examples/terraform.tfvars
+```
+
+Below is an example of how to configure your `terraform.tfvars` file:
+
+```hcl
+api_token     = "xxxxxxxxxxxxxxxxxxxxxxxxxxx"
+workspace_id  = "your-workspace-id"
+user_id       = "your user id"
+
+# Special variable used in users, groups, etc.
+workspace_id_target = "your-target-workspace-id"
 ```
 
 ## Contributing
