@@ -48,6 +48,7 @@ Thumbs.db
 .env.*.local
 .env.production.local
 .env.development.local
+examples/terraform.tfvars
 
 # Logs
 *.log
