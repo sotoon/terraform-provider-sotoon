@@ -2,8 +2,8 @@ site_name: Terraform Provider Sotoon
 site_url: https://github.com/sotoon/terraform-provider-sotoon
 site_description: 'Documentation for the Terraform Sotoon Provider.'
 repo_url: https://github.com/sotoon/terraform-provider-sotoon
-repo_name: 'your-org/terraform-provider-sotoon'
-edit_uri: 'edit/main/docs/'
+repo_name: sotoon/terraform-provider-sotoon
+edit_uri: "https://github.com/sotoon/terraform-provider-sotoon/tree/main/docs"
 
 theme:
   name: material
@@ -42,10 +42,34 @@ markdown_extensions:
       permalink: true
 
 nav:
-  - 'Home': 'index.md'
-  - 'Provider Resources':
-    - 'Instance': 'resources/instance.md'
-    - 'External IP': 'resources/external_ip.md'
-  - 'Data Sources':
-    - 'Instance': 'data-sources/instance.md'
-    - 'External IPs': 'data-sources/external_ips.md'
+  - Home: index.md
+  - Resources:
+      - IAM User: resources/iam_user.md
+      - IAM Group: resources/iam_group.md
+      - IAM Role: resources/iam_role.md
+      - IAM Service User: resources/iam_service_user.md
+      - IAM User Group Membership: resources/iam_user_group_membership.md
+      - IAM User Token: resources/iam_user_token.md
+      - IAM User Public Key: resources/iam_user_public_key.md
+      - IAM User Role: resources/iam_user_role.md
+      - IAM Group Role: resources/iam_group_role.md
+      - IAM Service User Group: resources/iam_service_user_group.md
+      - IAM Service User Role: resources/iam_service_user_role.md
+      - IAM Service User Token: resources/iam_service_user_token.md
+  - Data Sources:
+      - IAM Users: data-sources/iam_users.md
+      - IAM Groups: data-sources/iam_groups.md
+      - IAM Roles: data-sources/iam_roles.md
+      - IAM Service Users: data-sources/iam_service_users.md
+      - IAM Group Users: data-sources/iam_group_users.md
+      - IAM User Tokens: data-sources/iam_user_tokens.md
+      - IAM User Roles: data-sources/iam_user_roles.md
+      - IAM User Public Keys: data-sources/iam_user_public_keys.md
+      - IAM Group Details: data-sources/iam_group_details.md
+      - IAM Group Roles: data-sources/iam_group_roles.md
+      - IAM Service User Details: data-sources/iam_service_user_details.md
+      - IAM Service User Groups: data-sources/iam_service_user_groups.md
+      - IAM Service User Roles: data-sources/iam_service_user_roles.md
+      - IAM Service User Tokens: data-sources/iam_service_user_tokens.md
+      - IAM Service User Public Keys: data-sources/iam_service_user_public_keys.md
+  - Contributing: ../CONTRIBUTING.md
