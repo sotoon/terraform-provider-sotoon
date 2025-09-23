@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -71,8 +72,12 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 		d.SetId("")
 		return nil
 	}
-	d.Set("name", su.Name)
-	d.Set("description", su.Description)
+	if err := d.Set("name", su.Name); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
+	}
+	if err := d.Set("description", su.Description); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set description: %w", err))
+	}
 	return nil
 }
 

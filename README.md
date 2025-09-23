@@ -42,11 +42,12 @@ You can configure Terraform manually. Create or edit the Terraform CLI configura
 ```shell
 provider_installation {
   dev_overrides {
-    "sotoon/sotoon" = "/Users/moein/go/bin"
+    "sotoon/sotoon" = "<path-to-your-built-binary>"
   }
   direct {}
 }
 ```
+Replace `<path-to-your-built-binary>` with the directory containing your built `terraform-provider-sotoon` binary.
 
 ### Example Usage
 
@@ -77,6 +78,14 @@ terraform apply
 When you are finished, destroy the created resources to avoid costs.
 ```shell
 terraform destroy
+```
+
+## Running Tests
+
+To run unit tests locally:
+
+```shell
+go test ./internal/provider/... -tags=unit -v -run '^TestUnit'
 ```
 
 ## Contributing

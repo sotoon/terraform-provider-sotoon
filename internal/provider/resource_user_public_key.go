@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -80,9 +81,15 @@ func resourceUserPublicKeyRead(ctx context.Context, d *schema.ResourceData, meta
 		return diag.Errorf("error reading public-key %s: %s", id, err)
 	}
 
-	d.Set("title", key.Title)
-	d.Set("key_type", key.Type)
-	d.Set("public_key", key.PublicKey)
+	if err := d.Set("title", key.Title); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set title: %w", err))
+	}
+	if err := d.Set("key_type", key.Type); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set key_type: %w", err))
+	}
+	if err := d.Set("public_key", key.PublicKey); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set public_key: %w", err))
+	}
 	return nil
 }
 

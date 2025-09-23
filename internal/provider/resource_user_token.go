@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
@@ -99,8 +100,12 @@ func resourceUserTokenRead(ctx context.Context, d *schema.ResourceData, meta int
 	if err != nil {
 		return diag.Errorf("error reading token %s: %s", id, err)
 	}
-	d.Set("name", token.Name)
-	d.Set("expire_at", token.ExpiresAt)
+	if err := d.Set("name", token.Name); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
+	}
+	if err := d.Set("expire_at", token.ExpiresAt); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set expire_at: %w", err))
+	}
 	return nil
 }
 

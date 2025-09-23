@@ -1,0 +1,94 @@
+name: Lint And Unit Tests
+
+on:
+  pull_request:
+    branches: [ main, development ]
+  push:
+    branches: "**"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO111MODULE: on
+
+jobs:
+  build-and-lint:
+    name: Build and Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.3"
+          cache: true
+
+      - name: Verify build
+        run: go build ./...
+        shell: bash
+        continue-on-error: false
+
+      - name: Go vet
+        run: go vet ./...
+        shell: bash
+        continue-on-error: false
+      
+      - name: Lint (golangci-lint)
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.64.2
+          args: --timeout=5m
+
+  test:
+    name: Unit Tests
+    needs: build-and-lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.3"
+          cache: false
+
+      - name: unit tests
+        run: |
+          go test ./internal/provider/... -tags=unit -v -run '^TestUnit' -count=1 -timeout 60m -parallel 1
+        shell: bash
+        continue-on-error: false
