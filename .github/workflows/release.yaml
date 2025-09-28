@@ -1,0 +1,13 @@
+name: release
+on:
+  push:
+    tags: ['v*.*.*']   # Tag like v0.1.0
+permissions:
+  contents: write
+jobs:
+  terraform-provider-release:
+    uses: hashicorp/ghaction-terraform-provider-release/.github/workflows/community.yml@v4
+    with:
+      setup-go-version-file: 'go.mod'
+    secrets:
+      gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
