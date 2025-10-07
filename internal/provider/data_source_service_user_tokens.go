@@ -39,7 +39,7 @@ func dataSourceServiceUserTokensRead(ctx context.Context, d *schema.ResourceData
 		return diag.FromErr(err)
 	}
 
-	list, err := c.GetWorkspaceServiceUserTokenList(&suID, c.WorkspaceUUID)
+	list, err := c.GetWorkspaceServiceUserTokenList(ctx, &suID, c.WorkspaceUUID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -47,10 +47,10 @@ func dataSourceServiceUserTokensRead(ctx context.Context, d *schema.ResourceData
 	result := make([]map[string]interface{}, 0)
 	if list != nil {
 		for _, t := range *list {
-			if t.UUID == nil {
+			if t.Uuid == "" {
 				continue
 			}
-			result = append(result, map[string]interface{}{"id": t.UUID.String()})
+			result = append(result, map[string]interface{}{"id": t.Uuid})
 		}
 	}
 	d.SetId(suID.String())

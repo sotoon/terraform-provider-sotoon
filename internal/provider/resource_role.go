@@ -57,7 +57,7 @@ func resourceRoleCreate(ctx context.Context, d *schema.ResourceData, meta interf
 
 	existing, err := c.GetRoleByName(ctx, name)
 	if err == nil {
-		d.SetId(existing.UUID.String())
+		d.SetId(existing.Uuid)
 		return resourceRoleRead(ctx, d, meta)
 	}
 
@@ -65,24 +65,20 @@ func resourceRoleCreate(ctx context.Context, d *schema.ResourceData, meta interf
 	if err != nil {
 		return diag.Errorf("failed to create role %q: %s", name, err)
 	}
-	d.SetId(created.UUID.String())
+	d.SetId(created.Uuid)
 
 	// Attach rules if specified
 	if v, ok := d.GetOk("rules"); ok && v.(*schema.Set).Len() > 0 {
-		roleUUID, err := uuid.FromString(created.UUID.String())
+		roleUUID, err := uuid.FromString(created.Uuid)
 		if err != nil {
 			return diag.Errorf("invalid role UUID format: %s", err)
 		}
 
 		ruleIDs := v.(*schema.Set).List()
-		ruleUUIDs := make([]uuid.UUID, 0, len(ruleIDs))
+		ruleUUIDs := make([]string, 0, len(ruleIDs))
 
 		for _, ruleID := range ruleIDs {
-			ruleUUID, err := uuid.FromString(ruleID.(string))
-			if err != nil {
-				return diag.Errorf("invalid rule UUID format for rule %s: %s", ruleID, err)
-			}
-			ruleUUIDs = append(ruleUUIDs, ruleUUID)
+			ruleUUIDs = append(ruleUUIDs, ruleID.(string))
 		}
 
 		if len(ruleUUIDs) > 0 {
@@ -120,15 +116,12 @@ func resourceRoleRead(ctx context.Context, d *schema.ResourceData, meta interfac
 	// Get rules attached to this role
 	rules, err := c.GetRoleRules(ctx, &roleUUID)
 	if err != nil {
-		tflog.Warn(ctx, "Failed to get rules for role", map[string]interface{}{
-			"role_id": id,
-			"error":   err.Error(),
-		})
+		return diag.Errorf("failed to load rulls %s", err.Error())
 		// Don't fail the whole read operation if we can't get the rules
 	} else {
 		ruleIDs := make([]string, 0, len(rules))
 		for _, rule := range rules {
-			ruleIDs = append(ruleIDs, rule.UUID.String())
+			ruleIDs = append(ruleIDs, rule.Uuid)
 		}
 		if err := d.Set("rules", ruleIDs); err != nil {
 			return diag.FromErr(fmt.Errorf("failed to set rules: %w", err))
@@ -147,12 +140,9 @@ func resourceRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interf
 		return diag.Errorf("invalid role ID %q: %s", id, err)
 	}
 
-	newName := d.Get("name").(string)
-	updated, err := c.UpdateRole(ctx, &roleUUID, newName)
-	if err != nil {
-		return diag.Errorf("failed to update role %q: %s", id, err)
+	if d.HasChange("name") {
+		return diag.Errorf("name of role cannot be edited")
 	}
-	d.SetId(updated.UUID.String())
 
 	// Handle rule changes if the rules field has been changed
 	if d.HasChange("rules") {
@@ -169,14 +159,10 @@ func resourceRoleUpdate(ctx context.Context, d *schema.ResourceData, meta interf
 		rulesToAdd := newSet.Difference(oldSet)
 		if rulesToAdd.Len() > 0 {
 			ruleIDs := rulesToAdd.List()
-			ruleUUIDs := make([]uuid.UUID, 0, len(ruleIDs))
+			ruleUUIDs := make([]string, 0, len(ruleIDs))
 
 			for _, ruleID := range ruleIDs {
-				ruleUUID, err := uuid.FromString(ruleID.(string))
-				if err != nil {
-					return diag.Errorf("invalid rule UUID format for rule %s: %s", ruleID, err)
-				}
-				ruleUUIDs = append(ruleUUIDs, ruleUUID)
+				ruleUUIDs = append(ruleUUIDs, ruleID.(string))
 			}
 
 			if len(ruleUUIDs) > 0 {

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	uuid "github.com/satori/go.uuid"
 
@@ -50,17 +51,35 @@ func resourceUserPublicKey() *schema.Resource {
 func resourceUserPublicKeyCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 	title := d.Get("title").(string)
-	keyType := d.Get("key_type").(string)
 	key := d.Get("public_key").(string)
 
-	tflog.Debug(ctx, "Creating public key", map[string]interface{}{"title": title})
+	keysList, err := c.GetAllMyUserPublicKeyList(ctx)
+	if err != nil {
+		return diag.Errorf("failed to list all public keys: %s", err)
+	}
+	for _, keyInfo := range keysList {
+		if strings.Contains(key, keyInfo.Key) {
+			if keyInfo.Title == title {
+				d.SetId(keyInfo.Uuid)
+				if err := d.Set("title", keyInfo.Title); err != nil {
+					return diag.FromErr(fmt.Errorf("failed to set title: %w", err))
+				}
+				if err := d.Set("key_type", keyInfo.Type); err != nil {
+					return diag.FromErr(fmt.Errorf("failed to set key_type: %w", err))
+				}
+				return nil
+			}
+			return diag.Errorf("this key has already been registered by another title")
+		}
+	}
 
-	created, err := c.CreateMyUserPublicKey(title, keyType, key)
+	created, err := c.CreateMyUserPublicKey(ctx, title, key)
 	if err != nil {
 		return diag.Errorf("Failed to create user public key %q: %s", title, err.Error())
 	}
 
-	d.SetId(created.UUID)
+	d.SetId(created.Uuid)
+	d.Set("key_type", created.Type)
 	return resourceUserPublicKeyRead(ctx, d, meta)
 }
 
@@ -76,7 +95,7 @@ func resourceUserPublicKeyRead(ctx context.Context, d *schema.ResourceData, meta
 		return nil
 	}
 
-	key, err := c.GetOneDefaultUserPublicKey(&uid)
+	key, err := c.GetUserPublicKey(ctx, &uid)
 	if err != nil {
 		return diag.Errorf("error reading public-key %s: %s", id, err)
 	}
@@ -105,7 +124,7 @@ func resourceUserPublicKeyDelete(ctx context.Context, d *schema.ResourceData, me
 		return nil
 	}
 
-	err = c.DeleteDefaultUserPublicKey(&uid)
+	err = c.DeleteUserPublicKey(ctx, &uid)
 	if err != nil {
 		return diag.Errorf("error deleting public-key %q: %s", id, err)
 	}

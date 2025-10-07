@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
 func dataSourceGroups() *schema.Resource {
@@ -75,8 +75,8 @@ func dataSourceGroupsRead(ctx context.Context, d *schema.ResourceData, meta inte
 	groupList := make([]map[string]interface{}, 0, len(groups))
 	for _, group := range groups {
 		groupData := map[string]interface{}{
-			"id":          group.UUID.String(),
-			"name":        group.Name,
+			"id":   group.Uuid,
+			"name": group.Name,
 		}
 		groupList = append(groupList, groupData)
 	}

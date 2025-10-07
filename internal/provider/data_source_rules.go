@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -108,14 +107,8 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 
 	// Get workspace-specific rules
-	rules, err := c.GetWorkspaceRules(ctx)
+	rules, err := c.GetWorkspaceRules(ctx, c.Workspace)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
-			return diag.Errorf(
-				"Forbidden: cannot list rules in this workspace. Check the token's IAM roles. Original error: %s",
-				err,
-			)
-		}
 		return diag.FromErr(err)
 	}
 
@@ -127,7 +120,7 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 		}
 
 		ruleList = append(ruleList, map[string]interface{}{
-			"id":      rule.UUID.String(),
+			"id":      rule.Uuid,
 			"name":    rule.Name,
 			"actions": actions,
 			"object":  rule.Object,
@@ -139,20 +132,13 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(fmt.Errorf("failed to set rules list: %w", err))
 	}
 
-	// Get global rules from the special workspace
-	globalWorkspaceUUID := GlobalWorkspaceUUID
-
-	originalWorkspaceUUID := *c.WorkspaceUUID
-	c.WorkspaceUUID = &globalWorkspaceUUID
-	globalRules, err := c.GetWorkspaceRules(context.Background())
+	globalRules, err := c.GetWorkspaceRules(context.Background(), GlobalWorkspaceUUID.String())
 	if err != nil {
-		c.WorkspaceUUID = &originalWorkspaceUUID
 		tflog.Warn(ctx, "Failed to get global rules", map[string]interface{}{"error": err.Error()})
 		if err := d.Set("global_rules", []map[string]interface{}{}); err != nil {
 			return diag.FromErr(fmt.Errorf("failed to set empty global rules list: %w", err))
 		}
 	} else {
-		c.WorkspaceUUID = &originalWorkspaceUUID
 		globalRuleList := make([]map[string]interface{}, 0, len(globalRules))
 		for _, rule := range globalRules {
 			actions := make([]interface{}, len(rule.Actions))
@@ -161,7 +147,7 @@ func dataSourceRulesRead(ctx context.Context, d *schema.ResourceData, meta inter
 			}
 
 			globalRuleList = append(globalRuleList, map[string]interface{}{
-				"id":      rule.UUID.String(),
+				"id":      rule.Uuid,
 				"name":    rule.Name,
 				"actions": actions,
 				"object":  rule.Object,

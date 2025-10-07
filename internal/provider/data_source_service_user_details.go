@@ -31,16 +31,16 @@ func dataSourceServiceUserDetailsRead(ctx context.Context, d *schema.ResourceDat
 		return diag.FromErr(err)
 	}
 
-	det, err := c.GetWorkspaceServiceUserDetail(*c.WorkspaceUUID, suID)
+	det, err := c.GetWorkspaceServiceUserDetail(ctx, *c.WorkspaceUUID, suID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if det == nil || det.UUID == nil {
+	if det == nil || det.Uuid == "" {
 		d.SetId("")
 		return nil
 	}
 
-	d.SetId(det.UUID.String())
+	d.SetId(det.Uuid)
 	if err := d.Set("name", det.Name); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
 	}

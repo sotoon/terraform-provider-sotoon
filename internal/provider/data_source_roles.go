@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -71,25 +70,19 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	tflog.Debug(ctx, "Reading roles for workspace", map[string]interface{}{"workspace_id": workspaceID})
 
 	if _, err := uuid.FromString(workspaceID); err != nil {
-		return diag.Errorf("Invalid workspace_id format: not a valid UUID: %s", err)
+		return diag.Errorf("Invalid workspace_id format: not a valid UUID: %w", err)
 	}
 
 	// Get workspace-specific roles
-	roles, err := c.GetWorkspaceRoles(ctx)
+	roles, err := c.GetWorkspaceRoles(ctx, c.Workspace)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
-			return diag.Errorf(
-				"Forbidden: the API token lacks permissions to list roles in this workspace. Original error: %s",
-				err,
-			)
-		}
-		return diag.FromErr(err)
+		return diag.Errorf("failed to list roles :%s", err)
 	}
 
 	roleList := make([]map[string]interface{}, 0, len(roles))
 	for _, role := range roles {
 		roleList = append(roleList, map[string]interface{}{
-			"id":   role.UUID.String(),
+			"id":   role.Uuid,
 			"name": role.Name,
 		})
 	}
@@ -98,23 +91,17 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.FromErr(fmt.Errorf("failed to set roles list: %w", err))
 	}
 
-	// Get global roles from the special workspace
-	globalWorkspaceUUID := GlobalWorkspaceUUID
-	originalWorkspaceUUID := *c.WorkspaceUUID
-	c.WorkspaceUUID = &globalWorkspaceUUID
-	globalRoles, err := c.GetWorkspaceRoles(ctx)
+	globalRoles, err := c.GetWorkspaceRoles(ctx, GlobalWorkspaceUUID.String())
 	if err != nil {
-		c.WorkspaceUUID = &originalWorkspaceUUID
-		tflog.Warn(ctx, "Failed to get global roles", map[string]interface{}{"error": err.Error()})
+		tflog.Error(ctx, "Failed to get global roles", map[string]interface{}{"error": err.Error()})
 		if err := d.Set("global_roles", []map[string]interface{}{}); err != nil {
 			return diag.FromErr(fmt.Errorf("failed to set empty global roles list: %w", err))
 		}
 	} else {
-		c.WorkspaceUUID = &originalWorkspaceUUID
 		globalRoleList := make([]map[string]interface{}, 0, len(globalRoles))
 		for _, role := range globalRoles {
 			globalRoleList = append(globalRoleList, map[string]interface{}{
-				"id":   role.UUID.String(),
+				"id":   role.Uuid,
 				"name": role.Name,
 			})
 		}

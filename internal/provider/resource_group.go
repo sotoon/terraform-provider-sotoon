@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/iam-client/pkg/types"
+	"github.com/sotoon/sotoon-sdk-go/sdk/core/iam"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -54,7 +54,7 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 	}
 	for _, g := range groups {
 		if g.Name == name {
-			d.SetId(g.UUID.String())
+			d.SetId(g.Uuid)
 			return resourceGroupRead(ctx, d, meta)
 		}
 	}
@@ -64,7 +64,7 @@ func resourceGroupCreate(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("Failed to create group %q: %s", name, err.Error())
 	}
 
-	d.SetId(created.UUID.String())
+	d.SetId(created.Uuid)
 
 	return resourceGroupRead(ctx, d, meta)
 }
@@ -77,10 +77,10 @@ func resourceGroupRead(ctx context.Context, d *schema.ResourceData, meta interfa
 		return diag.FromErr(err)
 	}
 
-	var found *types.Group
+	var found *iam.IamGroup
 	for _, g := range groups {
-		if g.UUID.String() == d.Id() {
-			found = g
+		if g.Uuid == d.Id() {
+			found = &g
 			break
 		}
 	}

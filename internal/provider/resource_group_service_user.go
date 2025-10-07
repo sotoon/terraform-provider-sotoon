@@ -68,20 +68,14 @@ func resourceGroupServiceUserCreate(ctx context.Context, d *schema.ResourceData,
 	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
 
 	for _, u := range serviceUsersList {
-		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+		remoteServiceUsersID = append(remoteServiceUsersID, u.Uuid)
 	}
 
 	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
 	toAddList := diff(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
 
 	if len(toAddList) > 0 {
-		uuids := make([]uuid.UUID, 0, len(toAddList))
-		for _, id := range toAddList {
-			uuid, _ := uuid.FromString(id)
-			uuids = append(uuids, uuid)
-		}
-
-		if _, err := c.BulkAddServiceUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids); err != nil {
+		if _, err := c.BulkAddServiceUsersToGroup(ctx, groupUUID, toAddList); err != nil {
 			return diag.Errorf("add service users to group %s: %s", groupID, err)
 		}
 	}
@@ -114,7 +108,7 @@ func resourceGroupServiceUserRead(ctx context.Context, d *schema.ResourceData, m
 
 	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
 	for _, u := range serviceUsersList {
-		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+		remoteServiceUsersID = append(remoteServiceUsersID, u.Uuid)
 	}
 	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
 
@@ -156,7 +150,7 @@ func resourceGroupServiceUserDelete(ctx context.Context, d *schema.ResourceData,
 			return diag.Errorf("invalid service_user_id in list: %s", err)
 		}
 
-		if err := c.UnbindServiceUserFromGroup(c.WorkspaceUUID, &groupUUID, &u); err != nil {
+		if err := c.UnbindServiceUserFromGroup(ctx, &groupUUID, &u); err != nil {
 			return diag.Errorf("unbind service user %s from group %s failed: %s", u.String(), groupUUID.String(), err)
 		}
 	}

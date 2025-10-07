@@ -2,12 +2,10 @@ package provider
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/iam-client/pkg/types"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -44,25 +42,15 @@ func dataSourceUserTokensRead(ctx context.Context, d *schema.ResourceData, meta 
 	c := meta.(*client.Client)
 	tflog.Debug(ctx, "Listing all user tokens")
 
-	var list []types.UserToken
-
-	ptr, err := c.GetAllMyUserTokenList()
+	list, err := c.GetAllMyUserTokenList(ctx)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "not exists") {
-			list = []types.UserToken{}
-		} else if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
-			return diag.Errorf("forbidden: cannot list tokens: %s", err)
-		} else {
-			return diag.Errorf("error listing tokens: %s", err)
-		}
-	} else {
-		list = *ptr
+		return diag.Errorf("error listing tokens: %s", err)
 	}
 
 	out := make([]map[string]interface{}, 0, len(list))
 	for _, tok := range list {
 		out = append(out, map[string]interface{}{
-			"id":    tok.UUID,
+			"id":    tok.Uuid,
 			"value": "",
 		})
 	}
