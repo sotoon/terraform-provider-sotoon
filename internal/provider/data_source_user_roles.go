@@ -53,22 +53,18 @@ func dataSourceUserRolesRead(ctx context.Context, d *schema.ResourceData, meta i
 		return diag.Errorf("invalid user_id %q: %s", userStr, err)
 	}
 
-	u, err := c.GetUser(&userUUID)
+	u, err := c.GetUserDetailed(ctx, &userUUID)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to get user detail (roles): %w", err))
 	}
-	if u == nil || u.UUID == nil {
+	if u.Uuid == nil {
 		return diag.Errorf("user %s not found", userUUID.String())
 	}
 
 	roleList := make([]map[string]interface{}, 0, len(u.Roles))
 	for _, r := range u.Roles {
-		var rid string
-		if r.UUID != nil {
-			rid = r.UUID.String()
-		}
 		roleList = append(roleList, map[string]interface{}{
-			"id":   rid,
+			"id":   r.Uuid,
 			"name": r.Name,
 		})
 	}

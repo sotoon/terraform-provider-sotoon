@@ -36,18 +36,18 @@ func dataSourceServiceUsers() *schema.Resource {
 func dataSourceServiceUsersRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 
-	list, err := c.GetServiceUsers(c.WorkspaceUUID)
+	list, err := c.GetServiceUsers(ctx)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	out := make([]map[string]interface{}, 0, len(list))
 	for _, su := range list {
-		if su == nil || su.UUID == nil {
+		if su.Uuid == "" {
 			continue
 		}
 		out = append(out, map[string]interface{}{
-			"id":          su.UUID.String(),
+			"id":          su.Uuid,
 			"name":        su.Name,
 			"description": su.Description,
 		})

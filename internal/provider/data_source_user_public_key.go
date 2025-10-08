@@ -2,12 +2,10 @@ package provider
 
 import (
 	"context"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/iam-client/pkg/types"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -48,25 +46,15 @@ func dataSourceUserPublicKeysRead(ctx context.Context, d *schema.ResourceData, m
 	c := meta.(*client.Client)
 	tflog.Debug(ctx, "Listing all public keys")
 
-	var list []*types.PublicKey
-
-	all, err := c.GetAllMyUserPublicKeyList()
+	list, err := c.GetAllMyUserPublicKeyList(ctx)
 	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "not exists") {
-			list = []*types.PublicKey{} // no keys → empty
-		} else if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
-			return diag.Errorf("forbidden: cannot list public-keys: %s", err)
-		} else {
-			return diag.Errorf("error listing public-keys: %s", err)
-		}
-	} else {
-		list = all
+		return diag.Errorf("error listing public-keys: %s", err)
 	}
 
 	out := make([]map[string]interface{}, 0, len(list))
 	for _, pk := range list {
 		out = append(out, map[string]interface{}{
-			"id":    pk.UUID,
+			"id":    pk.Uuid,
 			"title": pk.Title,
 			"key":   pk.Key,
 		})

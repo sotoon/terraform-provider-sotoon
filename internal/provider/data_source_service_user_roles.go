@@ -64,7 +64,7 @@ func dataSourceServiceUserRolesRead(ctx context.Context, d *schema.ResourceData,
 		return diag.Errorf("invalid service_user_id %q: %s", suStr, err)
 	}
 
-	detail, err := c.GetWorkspaceServiceUserDetail(wsUUID, suUUID)
+	detail, err := c.GetWorkspaceServiceUserDetail(ctx, wsUUID, suUUID)
 	if err != nil {
 		return diag.FromErr(fmt.Errorf("failed to get service user detail (roles): %w", err))
 	}
@@ -75,7 +75,7 @@ func dataSourceServiceUserRolesRead(ctx context.Context, d *schema.ResourceData,
 	roleList := make([]map[string]interface{}, 0)
 	for _, r := range detail.Roles {
 		roleList = append(roleList, map[string]interface{}{
-			"id":   r.UUID.String(),
+			"id":   r.Uuid,
 			"name": r.Name,
 		})
 	}

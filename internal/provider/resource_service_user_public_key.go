@@ -56,14 +56,14 @@ func resourceServiceUserPublicKeyCreate(ctx context.Context, d *schema.ResourceD
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	pk, err := c.CreateServiceUserPublicKey(*c.WorkspaceUUID, serviceUserUUID, title, key)
+	pk, err := c.CreateServiceUserPublicKey(ctx, serviceUserUUID, title, key)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if pk == nil || pk.UUID == nil {
+	if pk == nil || pk.Uuid == "" {
 		return diag.Errorf("empty public key response")
 	}
-	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), pk.UUID.String()))
+	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), pk.Uuid))
 	return resourceServiceUserPublicKeyRead(ctx, d, meta)
 }
 
@@ -73,13 +73,13 @@ func resourceServiceUserPublicKeyRead(ctx context.Context, d *schema.ResourceDat
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	list, err := c.GetWorkspaceServiceUserPublicKeyList(*c.WorkspaceUUID, suID)
+	list, err := c.GetWorkspaceServiceUserPublicKeyList(ctx, *c.WorkspaceUUID, suID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	for _, pk := range list {
-		if pk != nil && pk.UUID != nil && pk.UUID.String() == pkID.String() {
+		if pk.Uuid == pkID.String() {
 			if err := d.Set("title", pk.Title); err != nil {
 				return diag.FromErr(fmt.Errorf("failed to set title: %w", err))
 			}
@@ -102,7 +102,7 @@ func resourceServiceUserPublicKeyDelete(ctx context.Context, d *schema.ResourceD
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if err := c.DeleteServiceUserPublicKey(*c.WorkspaceUUID, suID, pkID); err != nil {
+	if err := c.DeleteServiceUserPublicKey(ctx, suID, pkID); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")

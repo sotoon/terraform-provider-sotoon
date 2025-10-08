@@ -70,12 +70,12 @@ func resourceUserTokenCreate(ctx context.Context, d *schema.ResourceData, meta i
 		"expire_at": expiresAt,
 	})
 
-	created, err := c.CreateMyUserToken(name, expiresAt)
+	created, err := c.CreateMyUserToken(ctx, name, expiresAt)
 	if err != nil {
 		return diag.Errorf("Failed to create user token %q: %s", name, err.Error())
 	}
 
-	d.SetId(created.UUID)
+	d.SetId(created.Uuid)
 
 	if err := d.Set("value", created.Secret); err != nil {
 		return diag.Errorf("error setting token value: %s", err)
@@ -96,14 +96,14 @@ func resourceUserTokenRead(ctx context.Context, d *schema.ResourceData, meta int
 		return nil
 	}
 
-	token, err := c.GetMyUserToken(&tid)
+	token, err := c.GetMyUserToken(ctx, &tid)
 	if err != nil {
 		return diag.Errorf("error reading token %s: %s", id, err)
 	}
 	if err := d.Set("name", token.Name); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
 	}
-	if err := d.Set("expire_at", token.ExpiresAt); err != nil {
+	if err := d.Set("expire_at", token.ExpiresAt.Format(time.RFC3339)); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set expire_at: %w", err))
 	}
 	return nil
@@ -121,7 +121,7 @@ func resourceUserTokenDelete(ctx context.Context, d *schema.ResourceData, meta i
 		return nil
 	}
 
-	err = c.DeleteMyUserToken(&tid)
+	err = c.DeleteMyUserToken(ctx, &tid)
 	if err != nil {
 		return diag.Errorf("error deleting token %q: %s", id, err)
 	}

@@ -9,7 +9,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 
 	uuid "github.com/satori/go.uuid"
-	"github.com/sotoon/iam-client/pkg/models"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -73,19 +72,19 @@ func resourceServiceUserTokenCreate(ctx context.Context, d *schema.ResourceData,
 		expiresAt = &expAt
 	}
 
-	tok, err := c.CreateServiceUserToken(&serviceUserUUID, c.WorkspaceUUID, name, expiresAt)
+	tok, err := c.CreateServiceUserToken(ctx, &serviceUserUUID, name, expiresAt)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if tok == nil || tok.UUID == nil || tok.Secret == "" {
+	if tok.Secret == nil {
 		return diag.Errorf("empty token response")
 	}
 
-	if err := d.Set("value", tok.Secret); err != nil {
+	if err := d.Set("value", *tok.Secret); err != nil {
 		return diag.Errorf("error setting token value: %s", err)
 	}
 
-	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), tok.UUID.String()))
+	d.SetId(fmt.Sprintf("%s/%s", serviceUserUUID.String(), *tok.Uuid))
 	return resourceServiceUserTokenRead(ctx, d, meta)
 }
 
@@ -97,14 +96,14 @@ func resourceServiceUserTokenRead(ctx context.Context, d *schema.ResourceData, m
 		return diag.FromErr(err)
 	}
 
-	list, err := c.GetWorkspaceServiceUserTokenList(&serviceUserID, c.WorkspaceUUID)
-	if err != nil && err.Error() != models.ErrNotFound.Error() {
+	list, err := c.GetWorkspaceServiceUserTokenList(ctx, &serviceUserID, c.WorkspaceUUID)
+	if err != nil && err != client.ErrNotFound {
 		return diag.FromErr(fmt.Errorf("failed to get service user token list: %w", err))
 	}
 
 	if list != nil {
 		for _, t := range *list {
-			if t.UUID != nil && t.UUID.String() == tokenID.String() {
+			if t.Uuid != "" && t.Uuid == tokenID.String() {
 				if err := d.Set("service_user_id", serviceUserID.String()); err != nil {
 					return diag.FromErr(fmt.Errorf("failed to set service_user_id: %w", err))
 				}
@@ -132,7 +131,7 @@ func resourceServiceUserTokenDelete(ctx context.Context, d *schema.ResourceData,
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if err := c.DeleteServiceUserToken(&serviceUserID, c.WorkspaceUUID, &tokenID); err != nil {
+	if err := c.DeleteServiceUserToken(ctx, &serviceUserID, &tokenID); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")

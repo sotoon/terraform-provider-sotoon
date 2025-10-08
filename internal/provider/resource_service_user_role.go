@@ -58,25 +58,20 @@ func resourceServiceUserRoleCreate(ctx context.Context, d *schema.ResourceData, 
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.GetRoleServiceUsers(&roleUUID, c.WorkspaceUUID)
+	serviceUsersList, err := c.GetRoleServiceUsers(ctx, &roleUUID)
 	if err != nil {
 		return diag.Errorf("read service-users of role: %s", err)
 	}
 
 	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
 	for _, u := range serviceUsersList {
-		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+		remoteServiceUsersID = append(remoteServiceUsersID, u.Uuid)
 	}
 
 	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
 	toAddList := diff(toSet(sortedServiceUserIds), toSet(remoteServiceUsersID))
 	if len(toAddList) > 0 {
-		uuids := make([]uuid.UUID, 0, len(toAddList))
-		for _, id := range toAddList {
-			uuid, _ := uuid.FromString(id)
-			uuids = append(uuids, uuid)
-		}
-		if err := c.BulkAddServiceUsersToRole(*c.WorkspaceUUID, roleUUID, uuids); err != nil {
+		if err := c.BulkAddServiceUsersToRole(ctx, roleUUID, toAddList); err != nil {
 			return diag.Errorf("add service users to role %s: %s", roleUUID, err)
 		}
 	}
@@ -102,14 +97,14 @@ func resourceServiceUserRoleRead(ctx context.Context, d *schema.ResourceData, me
 
 	sortedServiceUserIds := uniqueSorted(fromSchemaSetToStrings(d.Get("service_user_ids").(*schema.Set)))
 
-	serviceUsersList, err := c.GetRoleServiceUsers(&roleUUID, c.WorkspaceUUID)
+	serviceUsersList, err := c.GetRoleServiceUsers(ctx, &roleUUID)
 	if err != nil {
 		return diag.Errorf("read service-users of role %s: %s", roleUUID, err)
 	}
 
 	remoteServiceUsersID := make([]string, 0, len(serviceUsersList))
 	for _, u := range serviceUsersList {
-		remoteServiceUsersID = append(remoteServiceUsersID, u.UUID.String())
+		remoteServiceUsersID = append(remoteServiceUsersID, u.Uuid)
 	}
 	remoteServiceUsersID = uniqueSorted(remoteServiceUsersID)
 
@@ -147,7 +142,7 @@ func resourceServiceUserRoleDelete(ctx context.Context, d *schema.ResourceData, 
 		if err != nil {
 			return diag.Errorf("invalid service_user_id in list: %s", err)
 		}
-		if err := c.UnbindRoleFromServiceUser(c.WorkspaceUUID, &roleUUID, &u, map[string]string{}); err != nil {
+		if err := c.UnbindRoleFromServiceUser(ctx, &roleUUID, &u); err != nil {
 			return diag.Errorf("unbind service user %s from role %s failed: %s", u.String(), roleUUID.String(), err)
 		}
 	}

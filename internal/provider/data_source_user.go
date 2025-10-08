@@ -8,8 +8,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 	uuid "github.com/satori/go.uuid"
+	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
 func dataSourceUsers() *schema.Resource {
@@ -80,9 +80,9 @@ func dataSourceUsersRead(ctx context.Context, d *schema.ResourceData, meta inter
 	userList := make([]map[string]interface{}, 0, len(users))
 	for _, user := range users {
 		userData := map[string]interface{}{
-			"id":           user.UUID.String(),
-			"email":        user.Email,
-			"name":         user.Name,
+			"id":    user.Uuid,
+			"email": user.Email,
+			"name":  user.Name,
 			// "is_suspended": user.IsSuspended,
 		}
 		userList = append(userList, userData)

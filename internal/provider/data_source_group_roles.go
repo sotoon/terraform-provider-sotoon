@@ -79,7 +79,7 @@ func dataSourceGroupRolesRead(ctx context.Context, d *schema.ResourceData, meta 
 	list := make([]map[string]interface{}, len(roles))
 	for i, r := range roles {
 		list[i] = map[string]interface{}{
-			"id":             r.UUID.String(),
+			"id":             r.Uuid,
 			"name":           r.Name,
 			"description_fa": r.DescriptionFa,
 			"description_en": r.DescriptionEn,

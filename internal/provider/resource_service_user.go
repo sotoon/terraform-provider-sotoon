@@ -44,15 +44,29 @@ func resourceServiceUserCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	name := d.Get("name").(string)
 	description := d.Get("description").(string)
-	serviceUser, err := c.CreateServiceUser(name, description, c.WorkspaceUUID)
+
+	currentServiceUsers, err := c.GetServiceUsers(ctx)
+	if err != nil {
+		return diag.Errorf("failed to get services in resourceServiceUserCreate %s", err.Error())
+	}
+
+	for _, su := range currentServiceUsers {
+		if su.Name == name {
+			d.Set("description", su.Description)
+			d.SetId(su.Uuid)
+			return nil
+		}
+	}
+
+	serviceUser, err := c.CreateServiceUser(ctx, name, description)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if serviceUser == nil || serviceUser.UUID == nil {
+	if serviceUser == nil || serviceUser.Uuid == "" {
 		return diag.Errorf("empty service user response")
 	}
 
-	d.SetId(serviceUser.UUID.String())
+	d.SetId(serviceUser.Uuid)
 	return resourceServiceUserRead(ctx, d, meta)
 }
 
@@ -64,11 +78,11 @@ func resourceServiceUserRead(ctx context.Context, d *schema.ResourceData, meta i
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	su, err := c.GetServiceUser(c.WorkspaceUUID, &u)
+	su, err := c.GetServiceUser(ctx, &u)
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if su == nil || su.UUID == nil {
+	if su == nil || su.Uuid == "" {
 		d.SetId("")
 		return nil
 	}
@@ -91,11 +105,17 @@ func resourceServiceUserUpdate(ctx context.Context, d *schema.ResourceData, meta
 	}
 	name := d.Get("name").(string)
 	desc := d.Get("description").(string)
-	if _, err := c.UpdateServiceUser(*c.WorkspaceUUID, u, name, desc); err != nil {
+	res, err := c.UpdateServiceUser(ctx, u, name, desc)
+	if err != nil {
 		return diag.FromErr(err)
 	}
-
-	return resourceServiceUserRead(ctx, d, meta)
+	if err := d.Set("name", res.Name); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
+	}
+	if err := d.Set("description", res.Description); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set description: %w", err))
+	}
+	return nil
 }
 
 func resourceServiceUserDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
@@ -106,7 +126,7 @@ func resourceServiceUserDelete(ctx context.Context, d *schema.ResourceData, meta
 	if err != nil {
 		return diag.FromErr(err)
 	}
-	if err := c.DeleteServiceUser(c.WorkspaceUUID, &u); err != nil {
+	if err := c.DeleteServiceUser(ctx, &u); err != nil {
 		return diag.FromErr(err)
 	}
 	d.SetId("")
