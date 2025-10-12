@@ -52,7 +52,9 @@ func resourceServiceUserCreate(ctx context.Context, d *schema.ResourceData, meta
 
 	for _, su := range currentServiceUsers {
 		if su.Name == name {
-			d.Set("description", su.Description)
+			if err := d.Set("description", su.Description); err != nil {
+				return diag.FromErr(fmt.Errorf("failed to set description: %w", err))
+			}
 			d.SetId(su.Uuid)
 			return nil
 		}

@@ -79,7 +79,9 @@ func resourceUserPublicKeyCreate(ctx context.Context, d *schema.ResourceData, me
 	}
 
 	d.SetId(created.Uuid)
-	d.Set("key_type", created.Type)
+	if err := d.Set("key_type", created.Type); err != nil {
+		return diag.FromErr(fmt.Errorf("failed to set key_type: %w", err))
+	}
 	return resourceUserPublicKeyRead(ctx, d, meta)
 }
 

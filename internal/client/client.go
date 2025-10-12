@@ -12,7 +12,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	uuid "github.com/satori/go.uuid"
 	sdk "github.com/sotoon/sotoon-sdk-go/sdk"
-	"github.com/sotoon/sotoon-sdk-go/sdk/core/iam"
+	iam "github.com/sotoon/sotoon-sdk-go/sdk/core/iam_v1"
 	"github.com/sotoon/sotoon-sdk-go/sdk/interceptors"
 )
 
@@ -90,6 +90,10 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 		),
 	)
 
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sotoon sdk: %w", err)
+	}
+
 	workspaceUUID, err := uuid.FromString(workspace)
 	if err != nil {
 		return nil, fmt.Errorf("invalid workspace_uuid format: %w", err)
@@ -110,7 +114,7 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 
 func (c *Client) InviteUser(ctx context.Context, email string) (*iam.IamUserInvitation, error) {
 
-	res, err := c.sotoonSdk.Iam.InviteUsersToWorkspaceWithResponse(ctx, c.Workspace, iam.IamInviteRequest{Emails: []string{email}})
+	res, err := c.sotoonSdk.Iam_v1.InviteUsersToWorkspaceWithResponse(ctx, c.Workspace, iam.IamInviteRequest{Emails: []string{email}})
 
 	if err != nil {
 		return nil, err
@@ -124,7 +128,7 @@ func (c *Client) InviteUser(ctx context.Context, email string) (*iam.IamUserInvi
 }
 
 func (c *Client) GetUserByEmail(ctx context.Context, email string) (*iam.IamUser, error) {
-	res, err := c.sotoonSdk.Iam.ListWorkspaceUsersWithResponse(ctx, c.Workspace, &iam.ListWorkspaceUsersParams{Email: &email})
+	res, err := c.sotoonSdk.Iam_v1.ListWorkspaceUsersWithResponse(ctx, c.Workspace, &iam.ListWorkspaceUsersParams{Email: &email})
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +140,7 @@ func (c *Client) GetUserByEmail(ctx context.Context, email string) (*iam.IamUser
 }
 
 func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) ([]iam.IamUser, error) {
-	res, err := c.sotoonSdk.Iam.ListWorkspaceUsersWithResponse(ctx, workspaceID.String(), nil)
+	res, err := c.sotoonSdk.Iam_v1.ListWorkspaceUsersWithResponse(ctx, workspaceID.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +152,7 @@ func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) 
 }
 
 func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID) ([]iam.IamGroup, error) {
-	res, err := c.sotoonSdk.Iam.ListGroupsWithResponse(ctx, workspaceID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListGroupsWithResponse(ctx, workspaceID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +164,7 @@ func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID)
 }
 
 func (c *Client) GetWorkspaceGroupUsersList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamUser, error) {
-	res, err := c.sotoonSdk.Iam.ListGroupUsersWithResponse(ctx, workspaceID.String(), groupID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListGroupUsersWithResponse(ctx, workspaceID.String(), groupID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,7 @@ func (c *Client) GetWorkspaceGroupUsersList(ctx context.Context, workspaceID, gr
 }
 
 func (c *Client) GetWorkspaceGroupRoleList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamRole, error) {
-	res, err := c.sotoonSdk.Iam.ListGroupRolesWithResponse(ctx, workspaceID.String(), groupID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListGroupRolesWithResponse(ctx, workspaceID.String(), groupID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -184,7 +188,7 @@ func (c *Client) GetWorkspaceGroupRoleList(ctx context.Context, workspaceID, gro
 }
 
 func (c *Client) GetAllGroupServiceUserList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamServiceUser, error) {
-	res, err := c.sotoonSdk.Iam.ListGroupServiceUsersWithResponse(ctx, workspaceID.String(), groupID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListGroupServiceUsersWithResponse(ctx, workspaceID.String(), groupID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +200,7 @@ func (c *Client) GetAllGroupServiceUserList(ctx context.Context, workspaceID, gr
 }
 
 func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, groupID uuid.UUID) (*iam.IamGroupDetail, error) {
-	res, err := c.sotoonSdk.Iam.GetDetailedGroupWithResponse(ctx, workspaceID.String(), groupID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedGroupWithResponse(ctx, workspaceID.String(), groupID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +212,7 @@ func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, group
 }
 
 func (c *Client) CreateGroup(ctx context.Context, name, description string) (*iam.IamGroup, error) {
-	res, err := c.sotoonSdk.Iam.CreateGroupWithResponse(ctx, c.Workspace,
+	res, err := c.sotoonSdk.Iam_v1.CreateGroupWithResponse(ctx, c.Workspace,
 		iam.IamRequestCreateGroup{
 			Description: &description,
 			Name:        name,
@@ -225,14 +229,14 @@ func (c *Client) CreateGroup(ctx context.Context, name, description string) (*ia
 }
 
 func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
-	_, err := c.sotoonSdk.Iam.DeleteGroupWithResponse(ctx, c.Workspace, groupID)
+	_, err := c.sotoonSdk.Iam_v1.DeleteGroupWithResponse(ctx, c.Workspace, groupID)
 	return err
 }
 
 // --- IAM User-Token Functions ---
 
 func (c *Client) CreateMyUserToken(ctx context.Context, name string, expiresAt *time.Time) (*iam.IamUserToken, error) {
-	res, err := c.sotoonSdk.Iam.CreateUserTokenWithResponse(
+	res, err := c.sotoonSdk.Iam_v1.CreateUserTokenWithResponse(
 		ctx, c.UserID,
 		iam.IamReuqestUserTokenCreate{
 			Name:      name,
@@ -252,7 +256,7 @@ func (c *Client) CreateMyUserToken(ctx context.Context, name string, expiresAt *
 }
 
 func (c *Client) GetMyUserToken(ctx context.Context, tokenUUID *uuid.UUID) (*iam.IamUserToken, error) {
-	res, err := c.sotoonSdk.Iam.ListUserTokensWithResponse(ctx, c.UserID)
+	res, err := c.sotoonSdk.Iam_v1.ListUserTokensWithResponse(ctx, c.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +273,7 @@ func (c *Client) GetMyUserToken(ctx context.Context, tokenUUID *uuid.UUID) (*iam
 }
 
 func (c *Client) GetAllMyUserTokenList(ctx context.Context) ([]iam.IamUserToken, error) {
-	res, err := c.sotoonSdk.Iam.ListUserTokensWithResponse(ctx, c.UserID)
+	res, err := c.sotoonSdk.Iam_v1.ListUserTokensWithResponse(ctx, c.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -281,7 +285,7 @@ func (c *Client) GetAllMyUserTokenList(ctx context.Context) ([]iam.IamUserToken,
 }
 
 func (c *Client) GetUserDetailed(ctx context.Context, userUUID *uuid.UUID) (*iam.IamUserWorkspaceDetailedUser, error) {
-	res, err := c.sotoonSdk.Iam.GetDetailedWorkspaceUserWithResponse(ctx, c.Workspace, userUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedWorkspaceUserWithResponse(ctx, c.Workspace, userUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -293,7 +297,7 @@ func (c *Client) GetUserDetailed(ctx context.Context, userUUID *uuid.UUID) (*iam
 }
 
 func (c *Client) GetUser(ctx context.Context, userUUID *uuid.UUID) (*iam.IamUser, error) {
-	res, err := c.sotoonSdk.Iam.GetUserWithResponse(ctx, userUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetUserWithResponse(ctx, userUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -305,14 +309,14 @@ func (c *Client) GetUser(ctx context.Context, userUUID *uuid.UUID) (*iam.IamUser
 }
 
 func (c *Client) DeleteMyUserToken(ctx context.Context, tokenUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.DeleteUserTokenWithResponse(ctx, c.UserID, tokenUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.DeleteUserTokenWithResponse(ctx, c.UserID, tokenUUID.String())
 	return err
 }
 
 // --- IAM Public-Key Functions ---
 
 func (c *Client) CreateMyUserPublicKey(ctx context.Context, title, key string) (*iam.IamUserPublicKey, error) {
-	res, err := c.sotoonSdk.Iam.CreateUserPublicKeyWithResponse(ctx, c.UserID,
+	res, err := c.sotoonSdk.Iam_v1.CreateUserPublicKeyWithResponse(ctx, c.UserID,
 		iam.IamRequestCreateUserPublicKey{
 			Title: title,
 			Key:   key,
@@ -329,7 +333,7 @@ func (c *Client) CreateMyUserPublicKey(ctx context.Context, title, key string) (
 }
 
 func (c *Client) GetUserPublicKey(ctx context.Context, keyUUID *uuid.UUID) (*iam.IamUserPublicKey, error) {
-	res, err := c.sotoonSdk.Iam.ListUserPublicKeysWithResponse(ctx, c.UserID)
+	res, err := c.sotoonSdk.Iam_v1.ListUserPublicKeysWithResponse(ctx, c.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +347,7 @@ func (c *Client) GetUserPublicKey(ctx context.Context, keyUUID *uuid.UUID) (*iam
 }
 
 func (c *Client) GetAllMyUserPublicKeyList(ctx context.Context) ([]iam.IamUserPublicKey, error) {
-	res, err := c.sotoonSdk.Iam.ListUserPublicKeysWithResponse(ctx, c.UserID)
+	res, err := c.sotoonSdk.Iam_v1.ListUserPublicKeysWithResponse(ctx, c.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -355,14 +359,14 @@ func (c *Client) GetAllMyUserPublicKeyList(ctx context.Context) ([]iam.IamUserPu
 }
 
 func (c *Client) DeleteUserPublicKey(ctx context.Context, keyUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.DeleteUserPublicKeyWithResponse(ctx, c.UserID, keyUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.DeleteUserPublicKeyWithResponse(ctx, c.UserID, keyUUID.String())
 	return err
 }
 
 // --- Group Functions ---
 
 func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
-	_, err := c.sotoonSdk.Iam.UpdateGroupWithResponse(ctx, c.Workspace, groupID,
+	_, err := c.sotoonSdk.Iam_v1.UpdateGroupWithResponse(ctx, c.Workspace, groupID,
 		iam.IamRequestCreateGroup{
 			Name:        name,
 			Description: &description,
@@ -371,7 +375,7 @@ func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, d
 }
 
 func (c *Client) GetAllGroupUserList(ctx context.Context, groupUUID *uuid.UUID) ([]iam.IamUser, error) {
-	res, err := c.sotoonSdk.Iam.ListGroupUsersWithResponse(ctx, c.Workspace, groupUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListGroupUsersWithResponse(ctx, c.Workspace, groupUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +387,7 @@ func (c *Client) GetAllGroupUserList(ctx context.Context, groupUUID *uuid.UUID) 
 }
 
 func (c *Client) BulkAddUsersToGroup(ctx context.Context, groupUUID uuid.UUID, uuids []string) ([]iam.IamServiceUserGroup, error) {
-	res, err := c.sotoonSdk.Iam.BulkAddUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddUsersRequest{Users: uuids})
+	res, err := c.sotoonSdk.Iam_v1.BulkAddUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddUsersRequest{Users: uuids})
 	if err != nil {
 		return nil, err
 	}
@@ -396,12 +400,12 @@ func (c *Client) BulkAddUsersToGroup(ctx context.Context, groupUUID uuid.UUID, u
 
 func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
 	// Call the UnbindUserFromGroup function with pointers to the UUIDs.
-	_, err := c.sotoonSdk.Iam.RemoveUserFromGroupWithResponse(ctx, c.Workspace, groupID, userID)
+	_, err := c.sotoonSdk.Iam_v1.RemoveUserFromGroupWithResponse(ctx, c.Workspace, groupID, userID)
 	return err
 }
 
 func (c *Client) BulkAddRolesToGroup(ctx context.Context, groupUUID *uuid.UUID, rolesWithItems []iam.IamRoleItem) error {
-	_, err := c.sotoonSdk.Iam.BulkAddRolesToGroupWithResponse(ctx, c.Workspace,
+	_, err := c.sotoonSdk.Iam_v1.BulkAddRolesToGroupWithResponse(ctx, c.Workspace,
 		groupUUID.String(), iam.IamBulkAddRolesRequest{
 			Roles: rolesWithItems,
 		})
@@ -410,13 +414,13 @@ func (c *Client) BulkAddRolesToGroup(ctx context.Context, groupUUID *uuid.UUID, 
 }
 
 func (c *Client) UnbindRoleFromGroup(ctx context.Context, roleUUID, groupUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.RemoveRoleFromGroupWithResponse(ctx, c.Workspace, roleUUID.String(), groupUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromGroupWithResponse(ctx, c.Workspace, roleUUID.String(), groupUUID.String())
 	return err
 
 }
 
 func (c *Client) BulkAddServiceUsersToGroup(ctx context.Context, groupUUID uuid.UUID, serviceUserUUIDs []string) ([]iam.IamServiceUserGroup, error) {
-	res, err := c.sotoonSdk.Iam.BulkAddServiceUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddServiceUsersRequest{ServiceUsers: serviceUserUUIDs})
+	res, err := c.sotoonSdk.Iam_v1.BulkAddServiceUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddServiceUsersRequest{ServiceUsers: serviceUserUUIDs})
 	if err != nil {
 		return nil, err
 	}
@@ -428,12 +432,12 @@ func (c *Client) BulkAddServiceUsersToGroup(ctx context.Context, groupUUID uuid.
 }
 
 func (c *Client) UnbindServiceUserFromGroup(ctx context.Context, groupUUID, serviceUserUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.RemoveServiceUserFromGroupWithResponse(ctx, c.Workspace, groupUUID.String(), serviceUserUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.RemoveServiceUserFromGroupWithResponse(ctx, c.Workspace, groupUUID.String(), serviceUserUUID.String())
 	return err
 }
 
 func (c *Client) GetServiceUsers(ctx context.Context) ([]iam.IamServiceUser, error) {
-	res, err := c.sotoonSdk.Iam.ListServiceUsersWithResponse(ctx, c.Workspace)
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUsersWithResponse(ctx, c.Workspace)
 	if err != nil {
 		return nil, err
 	}
@@ -445,7 +449,7 @@ func (c *Client) GetServiceUsers(ctx context.Context) ([]iam.IamServiceUser, err
 }
 
 func (c *Client) GetServiceUser(ctx context.Context, serviceUserUUID *uuid.UUID) (*iam.IamServiceUserDetailed, error) {
-	res, err := c.sotoonSdk.Iam.GetDetailedServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -457,7 +461,7 @@ func (c *Client) GetServiceUser(ctx context.Context, serviceUserUUID *uuid.UUID)
 }
 
 func (c *Client) GetWorkspaceServiceUserDetail(ctx context.Context, workspaceUUID, serviceUserUUID uuid.UUID) (*iam.IamServiceUserDetailed, error) {
-	res, err := c.sotoonSdk.Iam.GetDetailedServiceUserWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedServiceUserWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +474,7 @@ func (c *Client) GetWorkspaceServiceUserDetail(ctx context.Context, workspaceUUI
 }
 
 func (c *Client) CreateServiceUser(ctx context.Context, serviceUserName, description string) (*iam.IamServiceUser, error) {
-	res, err := c.sotoonSdk.Iam.CreateServiceUserWithResponse(ctx,
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserWithResponse(ctx,
 		c.Workspace, iam.IamServiceUserCreate{
 			Name:        serviceUserName,
 			Description: &description,
@@ -487,12 +491,12 @@ func (c *Client) CreateServiceUser(ctx context.Context, serviceUserName, descrip
 }
 
 func (c *Client) DeleteServiceUser(ctx context.Context, serviceUserUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.DeleteServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
 	return err
 }
 
 func (c *Client) UpdateServiceUser(ctx context.Context, serviceUserUUID uuid.UUID, name, description string) (*iam.IamServiceUser, error) {
-	res, err := c.sotoonSdk.Iam.UpdateServiceUserWithResponse(ctx, c.Workspace,
+	res, err := c.sotoonSdk.Iam_v1.UpdateServiceUserWithResponse(ctx, c.Workspace,
 		serviceUserUUID.String(),
 		iam.IamServiceUser{
 			Name:        name,
@@ -509,7 +513,7 @@ func (c *Client) UpdateServiceUser(ctx context.Context, serviceUserUUID uuid.UUI
 }
 
 func (c *Client) GetWorkspaceServiceUserTokenList(ctx context.Context, serviceUserUUID, workspaceUUID *uuid.UUID) (*[]iam.IamServiceUserToken, error) {
-	res, err := c.sotoonSdk.Iam.ListServiceUserTokensWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUserTokensWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -522,7 +526,7 @@ func (c *Client) GetWorkspaceServiceUserTokenList(ctx context.Context, serviceUs
 }
 
 func (c *Client) CreateServiceUserToken(ctx context.Context, serviceUserUUID *uuid.UUID, name string, expiresAt *time.Time) (*iam.IamServiceUserTokenWithSecret, error) {
-	res, err := c.sotoonSdk.Iam.CreateServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
 		iam.IamServiceUserTokenWithSecret{
 			Name:      name,
 			ExpiresAt: expiresAt,
@@ -539,12 +543,12 @@ func (c *Client) CreateServiceUserToken(ctx context.Context, serviceUserUUID *uu
 }
 
 func (c *Client) DeleteServiceUserToken(ctx context.Context, serviceUserUUID, serviceUserTokenUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.DeleteServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(), serviceUserTokenUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(), serviceUserTokenUUID.String())
 	return err
 }
 
 func (c *Client) GetWorkspaceServiceUserPublicKeyList(ctx context.Context, workspaceUUID, serviceUserUUID uuid.UUID) ([]iam.IamServiceUserPublicKey, error) {
-	res, err := c.sotoonSdk.Iam.ListServiceUserPublicKeysWithResponse(ctx,
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUserPublicKeysWithResponse(ctx,
 		workspaceUUID.String(),
 		serviceUserUUID.String())
 	if err != nil {
@@ -558,7 +562,7 @@ func (c *Client) GetWorkspaceServiceUserPublicKeyList(ctx context.Context, works
 }
 
 func (c *Client) CreateServiceUserPublicKey(ctx context.Context, serviceUserUUID uuid.UUID, name, publicKey string) (*iam.IamServiceUserPublicKey, error) {
-	res, err := c.sotoonSdk.Iam.CreateServiceUserPublicKeyWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserPublicKeyWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
 		iam.IamServiceUserPublicKeyCreate{
 			Key:   publicKey,
 			Title: name,
@@ -574,17 +578,17 @@ func (c *Client) CreateServiceUserPublicKey(ctx context.Context, serviceUserUUID
 }
 
 func (c *Client) DeleteServiceUserPublicKey(ctx context.Context, serviceUserUUID, publicKeyUUID uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.DeleteServiceUserPublicKey(ctx, c.Workspace, serviceUserUUID.String(), publicKeyUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserPublicKey(ctx, c.Workspace, serviceUserUUID.String(), publicKeyUUID.String())
 	return err
 }
 
 func (c *Client) UnbindRoleFromServiceUser(ctx context.Context, roleUUID, serviceUserUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.RemoveRoleFromServiceUserWithResponse(ctx, c.Workspace, roleUUID.String(), serviceUserUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromServiceUserWithResponse(ctx, c.Workspace, roleUUID.String(), serviceUserUUID.String())
 	return err
 }
 
 func (c *Client) GetRoleServiceUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamServiceUserWithRoleItems, error) {
-	res, err := c.sotoonSdk.Iam.ListRolesServiceUsersWithResponse(ctx, c.Workspace, roleUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListRolesServiceUsersWithResponse(ctx, c.Workspace, roleUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -596,7 +600,7 @@ func (c *Client) GetRoleServiceUsers(ctx context.Context, roleUUID *uuid.UUID) (
 }
 
 func (c *Client) BulkAddServiceUsersToRole(ctx context.Context, roleUUID uuid.UUID, serviceUserUUIDs []string) error {
-	_, err := c.sotoonSdk.Iam.BulkAddServiceUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
+	_, err := c.sotoonSdk.Iam_v1.BulkAddServiceUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
 		iam.IamBulkAddServiceUsersToRoleRequest{
 			ServiceUsers: serviceUserUUIDs,
 		})
@@ -607,7 +611,7 @@ func (c *Client) BulkAddServiceUsersToRole(ctx context.Context, roleUUID uuid.UU
 // --- IAM Role Functions ---
 
 func (c *Client) GetWorkspaceRoles(ctx context.Context, worksapceUUID string) ([]iam.IamRole, error) {
-	res, err := c.sotoonSdk.Iam.ListRolesWithResponse(ctx, worksapceUUID, nil)
+	res, err := c.sotoonSdk.Iam_v1.ListRolesWithResponse(ctx, worksapceUUID, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -619,7 +623,7 @@ func (c *Client) GetWorkspaceRoles(ctx context.Context, worksapceUUID string) ([
 }
 
 func (c *Client) CreateRole(ctx context.Context, name, description string) (*iam.IamRole, error) {
-	res, err := c.sotoonSdk.Iam.CreateRoleWithResponse(ctx, c.Workspace,
+	res, err := c.sotoonSdk.Iam_v1.CreateRoleWithResponse(ctx, c.Workspace,
 		iam.IamCreateRole{
 			Name:          name,
 			DescriptionEn: description,
@@ -636,7 +640,7 @@ func (c *Client) CreateRole(ctx context.Context, name, description string) (*iam
 }
 
 func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*iam.IamRole, error) {
-	res, err := c.sotoonSdk.Iam.GetRoleWithResponse(ctx, c.Workspace, roleUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.GetRoleWithResponse(ctx, c.Workspace, roleUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -648,7 +652,7 @@ func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*iam.IamRole
 }
 
 func (c *Client) GetRoleByName(ctx context.Context, roleName string) (*iam.IamRole, error) {
-	res, err := c.sotoonSdk.Iam.ListRolesWithResponse(ctx, c.Workspace, nil)
+	res, err := c.sotoonSdk.Iam_v1.ListRolesWithResponse(ctx, c.Workspace, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -667,12 +671,12 @@ func (c *Client) GetRoleByName(ctx context.Context, roleName string) (*iam.IamRo
 }
 
 func (c *Client) DeleteRole(ctx context.Context, roleID string) error {
-	_, err := c.sotoonSdk.Iam.DeleteRoleWithResponse(ctx, c.Workspace, roleID)
+	_, err := c.sotoonSdk.Iam_v1.DeleteRoleWithResponse(ctx, c.Workspace, roleID)
 	return err
 }
 
 func (c *Client) BulkAddRulesToRole(ctx context.Context, roleUUID uuid.UUID, ruleUUIDs []string) error {
-	_, err := c.sotoonSdk.Iam.BulkAddRulesToRoleWithResponse(
+	_, err := c.sotoonSdk.Iam_v1.BulkAddRulesToRoleWithResponse(
 		ctx, c.Workspace, roleUUID.String(),
 		iam.IamBulkAddRulesRequest{
 			RulesUuidList: ruleUUIDs,
@@ -681,7 +685,7 @@ func (c *Client) BulkAddRulesToRole(ctx context.Context, roleUUID uuid.UUID, rul
 }
 
 func (c *Client) GetRoleRules(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamRule, error) {
-	res, err := c.sotoonSdk.Iam.ListRoleRulesWithResponse(ctx, c.Workspace, roleUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListRoleRulesWithResponse(ctx, c.Workspace, roleUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -693,12 +697,12 @@ func (c *Client) GetRoleRules(ctx context.Context, roleUUID *uuid.UUID) ([]iam.I
 }
 
 func (c *Client) UnbindRuleFromRole(ctx context.Context, roleUUID *uuid.UUID, ruleUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.RemoveRuleFromRoleWithResponse(ctx, c.Workspace, roleUUID.String(), ruleUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.RemoveRuleFromRoleWithResponse(ctx, c.Workspace, roleUUID.String(), ruleUUID.String())
 	return err
 }
 
 func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamUserWithRoleItems, error) {
-	res, err := c.sotoonSdk.Iam.ListRoleUsersWithResponse(ctx, c.Workspace, roleUUID.String())
+	res, err := c.sotoonSdk.Iam_v1.ListRoleUsersWithResponse(ctx, c.Workspace, roleUUID.String())
 	if err != nil {
 		return nil, err
 	}
@@ -710,7 +714,7 @@ func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.I
 }
 
 func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string) error {
-	_, err := c.sotoonSdk.Iam.BulkAddUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
+	_, err := c.sotoonSdk.Iam_v1.BulkAddUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
 		iam.IamBulkAddUsersToRoleRequest{
 			Users: uuids,
 		})
@@ -718,14 +722,14 @@ func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uui
 }
 
 func (c *Client) UnbindRoleFromUser(ctx context.Context, roleUUID *uuid.UUID, userUUID *uuid.UUID) error {
-	_, err := c.sotoonSdk.Iam.RemoveRoleFromUser(ctx, c.Workspace, roleUUID.String(), userUUID.String())
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromUser(ctx, c.Workspace, roleUUID.String(), userUUID.String())
 	return err
 }
 
 // --- IAM Rule Functions ---
 
 func (c *Client) GetWorkspaceRules(ctx context.Context, workspace string) ([]iam.IamRule, error) {
-	res, err := c.sotoonSdk.Iam.ListRulesWithResponse(ctx, workspace)
+	res, err := c.sotoonSdk.Iam_v1.ListRulesWithResponse(ctx, workspace)
 	if err != nil {
 		return nil, err
 	}

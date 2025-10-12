@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	uuid "github.com/satori/go.uuid"
-	"github.com/sotoon/sotoon-sdk-go/sdk/core/iam"
+	iam "github.com/sotoon/sotoon-sdk-go/sdk/core/iam_v1"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 

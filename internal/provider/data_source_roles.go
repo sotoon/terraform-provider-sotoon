@@ -70,7 +70,7 @@ func dataSourceRolesRead(ctx context.Context, d *schema.ResourceData, meta inter
 	tflog.Debug(ctx, "Reading roles for workspace", map[string]interface{}{"workspace_id": workspaceID})
 
 	if _, err := uuid.FromString(workspaceID); err != nil {
-		return diag.Errorf("Invalid workspace_id format: not a valid UUID: %w", err)
+		return diag.FromErr(fmt.Errorf("invalid workspace_id format: not a valid UUID: %w", err))
 	}
 
 	// Get workspace-specific roles
