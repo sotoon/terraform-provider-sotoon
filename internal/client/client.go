@@ -77,7 +77,7 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 	sotoonSdk, err := sdk.NewSDK(
 		token,
 		sdk.WithInterceptor(
-			&logger{},
+			//&logger{},
 			interceptors.NewTreatAsErrorInterceptor(
 				interceptors.NewTreatAsErrorInterceptor_ErrorDetectorAll(),
 			),
@@ -85,7 +85,7 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 			interceptors.NewRetryInterceptor(
 				interceptors.NewDefaultInterceptorTransport(token),
 				interceptors.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
-				interceptors.NewRetryInterceptor_RetryDeciderAll(5),
+				interceptors.NewRetryInterceptor_RetryDeciderAll(15),
 			),
 		),
 	)
