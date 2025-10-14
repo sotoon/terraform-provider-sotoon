@@ -99,7 +99,7 @@ func dataSourceGroupDetailsRead(ctx context.Context, d *schema.ResourceData, met
 		return diag.FromErr(err)
 	}
 
-	d.SetId(group.UUID.String())
+	d.SetId(group.Uuid)
 
 	if err := d.Set("name", group.Name); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set name: %w", err))
@@ -123,7 +123,7 @@ func dataSourceGroupDetailsRead(ctx context.Context, d *schema.ResourceData, met
 	roles := make([]map[string]interface{}, len(group.Roles))
 	for i, r := range group.Roles {
 		roles[i] = map[string]interface{}{
-			"id":   r.UUID.String(),
+			"id":   r.Uuid,
 			"name": r.Name,
 		}
 	}

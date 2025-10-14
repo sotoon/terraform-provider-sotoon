@@ -67,18 +67,13 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 	}
 	remoteUsersID := make([]string, 0, len(usersList))
 	for _, u := range usersList {
-		remoteUsersID = append(remoteUsersID, u.UUID.String())
+		remoteUsersID = append(remoteUsersID, u.Uuid)
 	}
 	remoteUsersID = uniqueSorted(remoteUsersID)
 
 	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
 	if len(toAddList) > 0 {
-		uuids := make([]uuid.UUID, 0, len(toAddList))
-		for _, id := range toAddList {
-			uuid, _ := uuid.FromString(id)
-			uuids = append(uuids, uuid)
-		}
-		if err := c.BulkAddUsersToRole(ctx, roleUUID, uuids); err != nil {
+		if err := c.BulkAddUsersToRole(ctx, roleUUID, toAddList); err != nil {
 			return diag.Errorf("add users to role %s: %s", roleUUID, err)
 		}
 	}
@@ -111,7 +106,7 @@ func resourceUserRoleRead(ctx context.Context, d *schema.ResourceData, meta inte
 
 	remoteUsersID := make([]string, 0, len(usersList))
 	for _, u := range usersList {
-		remoteUsersID = append(remoteUsersID, u.UUID.String())
+		remoteUsersID = append(remoteUsersID, u.Uuid)
 	}
 	remoteUsersID = uniqueSorted(remoteUsersID)
 
@@ -153,7 +148,7 @@ func resourceUserRoleDelete(ctx context.Context, d *schema.ResourceData, meta in
 		if err != nil {
 			return diag.Errorf("invalid user_id in list: %s", err)
 		}
-		if err := c.UnbindRoleFromUser(ctx, &roleUUID, &u, map[string]string{}); err != nil {
+		if err := c.UnbindRoleFromUser(ctx, &roleUUID, &u); err != nil {
 			return diag.Errorf("unbind user %s from role %s failed: %s", u.String(), roleUUID.String(), err)
 		}
 	}

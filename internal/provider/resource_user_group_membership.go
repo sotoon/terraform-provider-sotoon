@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -70,18 +69,13 @@ func resourceUserGroupMembershipCreate(ctx context.Context, d *schema.ResourceDa
 	}
 	remoteUsersID := make([]string, 0, len(usersList))
 	for _, u := range usersList {
-		remoteUsersID = append(remoteUsersID, u.UUID.String())
+		remoteUsersID = append(remoteUsersID, u.Uuid)
 	}
 	remoteUsersID = uniqueSorted(remoteUsersID)
 
 	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
 	if len(toAddList) > 0 {
-		uuids := make([]uuid.UUID, 0, len(toAddList))
-		for _, id := range toAddList {
-			uuid, _ := uuid.FromString(id)
-			uuids = append(uuids, uuid)
-		}
-		if _, err := c.BulkAddUsersToGroup(ctx, groupUUID, uuids); err != nil {
+		if _, err := c.BulkAddUsersToGroup(ctx, groupUUID, toAddList); err != nil {
 			return diag.Errorf("add users to group %s: %s", groupID, err)
 		}
 	}
@@ -112,7 +106,7 @@ func resourceUserGroupMembershipRead(ctx context.Context, d *schema.ResourceData
 	}
 	remoteUsersID := make([]string, 0, len(usersList))
 	for _, u := range usersList {
-		remoteUsersID = append(remoteUsersID, u.UUID.String())
+		remoteUsersID = append(remoteUsersID, u.Uuid)
 	}
 	remoteUsersID = uniqueSorted(remoteUsersID)
 	eff := intersect(toSet(sortedUserIds), toSet(remoteUsersID))
@@ -147,12 +141,6 @@ func resourceUserGroupMembershipDelete(ctx context.Context, d *schema.ResourceDa
 	for _, v := range userIDs {
 		uid := v.(string)
 		if err := c.RemoveUserFromGroup(ctx, groupID, uid); err != nil {
-			msg := strings.ToLower(err.Error())
-			if strings.Contains(msg, "not found") || strings.Contains(msg, "no such") {
-				tflog.Warn(ctx, "User or group not found during removal; assuming already deleted",
-					map[string]interface{}{"groupID": groupID, "userID": uid})
-				continue
-			}
 			return diag.Errorf("failed to remove user %s from group %s: %s", uid, groupID, err)
 		}
 	}

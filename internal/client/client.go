@@ -5,15 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	uuid "github.com/satori/go.uuid"
-	iamclient "github.com/sotoon/iam-client/pkg/client"
-	"github.com/sotoon/iam-client/pkg/client/interceptor"
-	"github.com/sotoon/iam-client/pkg/models"
-	"github.com/sotoon/iam-client/pkg/types"
+	sdk "github.com/sotoon/sotoon-sdk-go/sdk"
+	iam "github.com/sotoon/sotoon-sdk-go/sdk/core/iam_v1"
+	"github.com/sotoon/sotoon-sdk-go/sdk/interceptors"
 )
 
 var ErrNotFound = errors.New("resource not found")
@@ -31,27 +29,42 @@ type Client struct {
 	ComputeBaseURL string
 	APIToken       string
 	Workspace      string
+	UserID         string
 	WorkspaceUUID  *uuid.UUID
 	HTTPClient     *http.Client
-	IAMClient      iamclient.Client
+	sotoonSdk      *sdk.SDK
 }
 
-type retryClient struct {
-	maxRetries int
-}
+// type logger struct {
+// }
 
-func (c *retryClient) ShouldRetry(resp *http.Response, err error, data interceptor.RetryInternalData) (bool, error) {
-	if data.RetryCount >= c.maxRetries {
-		if err != nil {
-			return false, err
-		}
-		return false, errors.Join(models.ErrMaxRetriesExceeded, fmt.Errorf("faced status code %d", resp.StatusCode))
-	}
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return true, nil
-	}
-	return false, nil
-}
+// func (a *logger) BeforeRequest(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+// 	var body []byte
+// 	if data.Request != nil && data.Request.Body != nil {
+// 		body, _ = io.ReadAll(data.Request.Body)
+// 		data.Request.Body = io.NopCloser(bytes.NewReader(body))
+// 	}
+
+// 	tflog.Info(data.Ctx, "BeforeRequest", map[string]interface{}{
+// 		"id":     data.ID,
+// 		"method": data.Request.Method,
+// 		"url":    data.Request.URL,
+// 		"body":   string(body),
+// 	})
+// 	return data, nil
+// }
+
+// func (a *logger) AfterResponse(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+// 	body, _ := io.ReadAll(data.Response.Body)
+// 	tflog.Info(data.Ctx, "AfterResponse", map[string]interface{}{
+// 		"id":       data.ID,
+// 		"method":   data.Request.Method,
+// 		"url":      data.Request.URL,
+// 		"response": string(body),
+// 	})
+// 	data.Response.Body = io.NopCloser(bytes.NewReader(body))
+// 	return data, nil
+// }
 
 // NewClient creates a new unified API client for both Compute and IAM.
 func NewClient(host, token, workspace, userID string) (*Client, error) {
@@ -59,19 +72,25 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
 
-	iam, err := iamclient.NewClient(token, "https://bepa.sotoon.ir", workspace, userID, iamclient.DEBUG)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create sotoon iam client: %w", err)
-	}
-
-	iam.AddInterceptor(interceptor.NewCircuitBreakerInterceptor(interceptor.CircuteBreakerForJust429, false))
-	iam.AddInterceptor(
-		interceptor.NewRetryInterceptor(
-			iam,
-			interceptor.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
-			&retryClient{maxRetries: 15},
+	sotoonSdk, err := sdk.NewSDK(
+		token,
+		sdk.WithInterceptor(
+			//&logger{},
+			interceptors.NewTreatAsErrorInterceptor(
+				interceptors.NewTreatAsErrorInterceptor_ErrorDetectorAll(),
+			),
+			interceptors.NewCircuitBreakerInterceptor(interceptors.CircuteBreakerForJust429, false),
+			interceptors.NewRetryInterceptor(
+				interceptors.NewDefaultInterceptorTransport(token),
+				interceptors.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
+				interceptors.NewRetryInterceptor_RetryDeciderAll(15),
+			),
 		),
 	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to create sotoon sdk: %w", err)
+	}
 
 	workspaceUUID, err := uuid.FromString(workspace)
 	if err != nil {
@@ -84,345 +103,638 @@ func NewClient(host, token, workspace, userID string) (*Client, error) {
 		Workspace:      workspace,
 		WorkspaceUUID:  &workspaceUUID,
 		HTTPClient:     &http.Client{Timeout: 30 * time.Second},
-		IAMClient:      iam,
+		sotoonSdk:      sotoonSdk,
+		UserID:         userID,
 	}, nil
 }
 
 // --- IAM User Functions ---
 
-func (c *Client) InviteUser(ctx context.Context, email string) (*types.InvitationInfo, error) {
+func (c *Client) InviteUser(ctx context.Context, email string) (*iam.IamUserInvitation, error) {
 
-	invitationInfo, err := c.IAMClient.InviteUser(c.WorkspaceUUID, email)
+	res, err := c.sotoonSdk.Iam_v1.InviteUsersToWorkspaceWithResponse(ctx, c.Workspace, iam.IamInviteRequest{Emails: []string{email}})
 
-	if err != nil {
-		if strings.Contains(err.Error(), "cannot unmarshal array into Go value of type") {
-			tflog.Debug(ctx, "Successfully invited user (ignoring known unmarshal error)")
-			return nil, nil
-		}
-		// Log the actual error before returning
-		tflog.Error(ctx, "Failed to invite user", map[string]interface{}{"error": err.Error()})
-		return nil, err
-	}
-
-	return invitationInfo, nil
-}
-
-func (c *Client) GetUserByEmail(ctx context.Context, email string) (*types.User, error) {
-	user, err := c.IAMClient.GetUserByEmail(email, c.WorkspaceUUID)
-	if err != nil {
-		if err.Error() == "User not found" {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	return user, nil
-}
-
-func (c *Client) GetUserByID(ctx context.Context, userID string) (*types.User, error) {
-	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return nil, fmt.Errorf("invalid user ID format: %w", err)
-	}
-	user, err := c.IAMClient.GetUser(&userUUID)
-	if err != nil {
-		if err.Error() == "User not found" {
-			return nil, ErrNotFound
-		}
-		return nil, err
-	}
-	return user, nil
-}
-
-func (c *Client) DeleteUser(ctx context.Context, userID string) error {
-	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID format: %w", err)
-	}
-	return c.IAMClient.DeleteUser(&userUUID)
-}
-
-func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) ([]*types.User, error) {
-	return c.IAMClient.GetWorkspaceUsers(workspaceID)
-}
-
-func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID) ([]*types.Group, error) {
-	return c.IAMClient.GetAllGroups(workspaceID)
-}
-
-func (c *Client) GetWorkspaceGroupUsersList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.User, error) {
-	return c.IAMClient.GetAllGroupUserList(workspaceID, groupID)
-}
-
-func (c *Client) GetWorkspaceGroupRoleList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.Role, error) {
-	return c.IAMClient.GetWorkspaceGroupRoleList(*workspaceID, *groupID)
-}
-
-func (c *Client) GetAllGroupServiceUserList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]*types.ServiceUser, error) {
-	return c.IAMClient.GetAllGroupServiceUserList(workspaceID, groupID)
-}
-
-func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, groupID uuid.UUID) (*types.Group, error) {
-	return c.IAMClient.GetWorkspaceGroupDetail(workspaceID, groupID)
-}
-
-func (c *Client) CreateGroup(ctx context.Context, name, description string) (*types.Group, error) {
-	group, err := c.IAMClient.CreateGroup(name, description, c.WorkspaceUUID)
 	if err != nil {
 		return nil, err
 	}
 
-	return &types.Group{
-		UUID:        group.UUID,
-		Name:        group.Name,
-		Description: group.Description,
-	}, nil
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetUserByEmail(ctx context.Context, email string) (*iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListWorkspaceUsersWithResponse(ctx, c.Workspace, &iam.ListWorkspaceUsersParams{Email: &email})
+	if err != nil {
+		return nil, err
+	}
+	if res.JSON200 != nil && len(*res.JSON200) > 0 {
+		return &(*res.JSON200)[0], nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) ([]iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListWorkspaceUsersWithResponse(ctx, workspaceID.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID) ([]iam.IamGroup, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListGroupsWithResponse(ctx, workspaceID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceGroupUsersList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListGroupUsersWithResponse(ctx, workspaceID.String(), groupID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceGroupRoleList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamRole, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListGroupRolesWithResponse(ctx, workspaceID.String(), groupID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetAllGroupServiceUserList(ctx context.Context, workspaceID, groupID *uuid.UUID) ([]iam.IamServiceUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListGroupServiceUsersWithResponse(ctx, workspaceID.String(), groupID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceGroupDetail(ctx context.Context, workspaceID, groupID uuid.UUID) (*iam.IamGroupDetail, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedGroupWithResponse(ctx, workspaceID.String(), groupID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) CreateGroup(ctx context.Context, name, description string) (*iam.IamGroup, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateGroupWithResponse(ctx, c.Workspace,
+		iam.IamRequestCreateGroup{
+			Description: &description,
+			Name:        name,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
 func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
-	groupUUID, err := uuid.FromString(groupID)
-	if err != nil {
-		return fmt.Errorf("invalid group ID format: %w", err)
-	}
-	return c.IAMClient.DeleteGroup(c.WorkspaceUUID, &groupUUID)
+	_, err := c.sotoonSdk.Iam_v1.DeleteGroupWithResponse(ctx, c.Workspace, groupID)
+	return err
 }
 
 // --- IAM User-Token Functions ---
 
-func (c *Client) CreateMyUserToken(name string, expiresAt *time.Time) (*types.UserToken, error) {
-	return c.IAMClient.CreateMyUserToken(name, expiresAt)
+func (c *Client) CreateMyUserToken(ctx context.Context, name string, expiresAt *time.Time) (*iam.IamUserToken, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateUserTokenWithResponse(
+		ctx, c.UserID,
+		iam.IamReuqestUserTokenCreate{
+			Name:      name,
+			ExpiresAt: *expiresAt,
+			IsHashed:  true,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetMyUserToken(tokenUUID *uuid.UUID) (*types.UserToken, error) {
-	return c.IAMClient.GetMyUserToken(tokenUUID)
+func (c *Client) GetMyUserToken(ctx context.Context, tokenUUID *uuid.UUID) (*iam.IamUserToken, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListUserTokensWithResponse(ctx, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() == 200 {
+		for _, token := range *res.JSON200 {
+			if token.Uuid == tokenUUID.String() {
+				return &token, nil
+			}
+		}
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetAllMyUserTokenList() (*[]types.UserToken, error) {
-	return c.IAMClient.GetAllMyUserTokenList()
+func (c *Client) GetAllMyUserTokenList(ctx context.Context) ([]iam.IamUserToken, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListUserTokensWithResponse(ctx, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetUser(userUUID *uuid.UUID) (*types.User, error) {
-	return c.IAMClient.GetUser(userUUID)
+func (c *Client) GetUserDetailed(ctx context.Context, userUUID *uuid.UUID) (*iam.IamUserWorkspaceDetailedUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedWorkspaceUserWithResponse(ctx, c.Workspace, userUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) DeleteMyUserToken(tokenUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteMyUserToken(tokenUUID)
+func (c *Client) GetUser(ctx context.Context, userUUID *uuid.UUID) (*iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetUserWithResponse(ctx, userUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) DeleteMyUserToken(ctx context.Context, tokenUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.DeleteUserTokenWithResponse(ctx, c.UserID, tokenUUID.String())
+	return err
 }
 
 // --- IAM Public-Key Functions ---
 
-func (c *Client) CreateMyUserPublicKey(title, keyType, key string) (*types.PublicKey, error) {
-	return c.IAMClient.CreateMyUserPublicKey(title, keyType, key)
+func (c *Client) CreateMyUserPublicKey(ctx context.Context, title, key string) (*iam.IamUserPublicKey, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateUserPublicKeyWithResponse(ctx, c.UserID,
+		iam.IamRequestCreateUserPublicKey{
+			Title: title,
+			Key:   key,
+		})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetOneDefaultUserPublicKey(keyUUID *uuid.UUID) (*types.PublicKey, error) {
-	return c.IAMClient.GetOneDefaultUserPublicKey(keyUUID)
+func (c *Client) GetUserPublicKey(ctx context.Context, keyUUID *uuid.UUID) (*iam.IamUserPublicKey, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListUserPublicKeysWithResponse(ctx, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	for _, key := range *res.JSON200 {
+		if key.Uuid == keyUUID.String() {
+			return &key, nil
+		}
+	}
+	return nil, ErrNotFound
+
 }
 
-func (c *Client) GetAllMyUserPublicKeyList() ([]*types.PublicKey, error) {
-	return c.IAMClient.GetAllMyUserPublicKeyList()
+func (c *Client) GetAllMyUserPublicKeyList(ctx context.Context) ([]iam.IamUserPublicKey, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListUserPublicKeysWithResponse(ctx, c.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) DeleteDefaultUserPublicKey(keyUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteMyUserPublicKey(keyUUID)
+func (c *Client) DeleteUserPublicKey(ctx context.Context, keyUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.DeleteUserPublicKeyWithResponse(ctx, c.UserID, keyUUID.String())
+	return err
 }
 
 // --- Group Functions ---
 
 func (c *Client) UpdateGroup(ctx context.Context, groupID string, name string, description string) error {
-	groupUUID, err := uuid.FromString(groupID)
-	if err != nil {
-		tflog.Error(ctx, "Failed to parse groupID string to UUID", map[string]interface{}{
-			"groupID": groupID,
-			"error":   err.Error(),
+	_, err := c.sotoonSdk.Iam_v1.UpdateGroupWithResponse(ctx, c.Workspace, groupID,
+		iam.IamRequestCreateGroup{
+			Name:        name,
+			Description: &description,
 		})
-		return err
-	}
-	err = c.IAMClient.UpdateGroup(*c.WorkspaceUUID, groupUUID, &name, &description, nil)
+	return err
+}
+
+func (c *Client) GetAllGroupUserList(ctx context.Context, groupUUID *uuid.UUID) ([]iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListGroupUsersWithResponse(ctx, c.Workspace, groupUUID.String())
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetAllGroupUserList(ctx context.Context, groupUUID *uuid.UUID) ([]*types.User, error) {
-	return c.IAMClient.GetAllGroupUserList(c.WorkspaceUUID, groupUUID)
-}
-
-func (c *Client) BulkAddUsersToGroup(ctx context.Context, groupUUID uuid.UUID, uuids []uuid.UUID) ([]*types.GroupUser, error) {
-	return c.IAMClient.BulkAddUsersToGroup(*c.WorkspaceUUID, groupUUID, uuids)
+func (c *Client) BulkAddUsersToGroup(ctx context.Context, groupUUID uuid.UUID, uuids []string) ([]iam.IamServiceUserGroup, error) {
+	res, err := c.sotoonSdk.Iam_v1.BulkAddUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddUsersRequest{Users: uuids})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return *res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
 func (c *Client) RemoveUserFromGroup(ctx context.Context, groupID string, userID string) error {
-	tflog.Debug(ctx, "Attempting to remove user from group", map[string]interface{}{"userID": userID, "groupID": groupID})
-
-	groupUUID, err := uuid.FromString(groupID)
-	if err != nil {
-		return fmt.Errorf("invalid group ID format: %w", err)
-	}
-	userUUID, err := uuid.FromString(userID)
-	if err != nil {
-		return fmt.Errorf("invalid user ID format: %w", err)
-	}
-
 	// Call the UnbindUserFromGroup function with pointers to the UUIDs.
-	err = c.IAMClient.UnbindUserFromGroup(c.WorkspaceUUID, &groupUUID, &userUUID)
-	if err != nil {
-		tflog.Error(ctx, "Failed to remove user from group via client", map[string]interface{}{
-			"userID":  userID,
-			"groupID": groupID,
-			"error":   err.Error(),
+	_, err := c.sotoonSdk.Iam_v1.RemoveUserFromGroupWithResponse(ctx, c.Workspace, groupID, userID)
+	return err
+}
+
+func (c *Client) BulkAddRolesToGroup(ctx context.Context, groupUUID *uuid.UUID, rolesWithItems []iam.IamRoleItem) error {
+	_, err := c.sotoonSdk.Iam_v1.BulkAddRolesToGroupWithResponse(ctx, c.Workspace,
+		groupUUID.String(), iam.IamBulkAddRolesRequest{
+			Roles: rolesWithItems,
 		})
-		return err
+	return err
+
+}
+
+func (c *Client) UnbindRoleFromGroup(ctx context.Context, roleUUID, groupUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromGroupWithResponse(ctx, c.Workspace, roleUUID.String(), groupUUID.String())
+	return err
+
+}
+
+func (c *Client) BulkAddServiceUsersToGroup(ctx context.Context, groupUUID uuid.UUID, serviceUserUUIDs []string) ([]iam.IamServiceUserGroup, error) {
+	res, err := c.sotoonSdk.Iam_v1.BulkAddServiceUsersToGroupWithResponse(ctx, c.Workspace, groupUUID.String(), iam.IamBulkAddServiceUsersRequest{ServiceUsers: serviceUserUUIDs})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return *res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) UnbindServiceUserFromGroup(ctx context.Context, groupUUID, serviceUserUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.RemoveServiceUserFromGroupWithResponse(ctx, c.Workspace, groupUUID.String(), serviceUserUUID.String())
+	return err
+}
+
+func (c *Client) GetServiceUsers(ctx context.Context) ([]iam.IamServiceUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUsersWithResponse(ctx, c.Workspace)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetServiceUser(ctx context.Context, serviceUserUUID *uuid.UUID) (*iam.IamServiceUserDetailed, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceServiceUserDetail(ctx context.Context, workspaceUUID, serviceUserUUID uuid.UUID) (*iam.IamServiceUserDetailed, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedServiceUserWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
+	if err != nil {
+		return nil, err
 	}
 
-	tflog.Info(ctx, "Successfully removed user from group via client", map[string]interface{}{"userID": userID, "groupID": groupID})
-	return nil
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) BindRoleToGroup(workspaceUUID *uuid.UUID, roleUUID *uuid.UUID, groupUUID *uuid.UUID, items map[string]string) error {
-	return c.IAMClient.BindRoleToGroup(workspaceUUID, roleUUID, groupUUID, items)
+func (c *Client) CreateServiceUser(ctx context.Context, serviceUserName, description string) (*iam.IamServiceUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserWithResponse(ctx,
+		c.Workspace, iam.IamServiceUserCreate{
+			Name:        serviceUserName,
+			Description: &description,
+		})
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) BulkAddRolesToGroup(workspaceUUID *uuid.UUID, groupUUID *uuid.UUID, rolesWithItems []types.RoleWithItems) error {
-	return c.IAMClient.BulkAddRolesToGroup(*workspaceUUID, *groupUUID, rolesWithItems)
+func (c *Client) DeleteServiceUser(ctx context.Context, serviceUserUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserWithResponse(ctx, c.Workspace, serviceUserUUID.String())
+	return err
 }
 
-func (c *Client) UnbindRoleFromGroup(workspaceUUID, roleUUID, groupUUID *uuid.UUID, items map[string]string) error {
-	return c.IAMClient.UnbindRoleFromGroup(workspaceUUID, roleUUID, groupUUID, items)
+func (c *Client) UpdateServiceUser(ctx context.Context, serviceUserUUID uuid.UUID, name, description string) (*iam.IamServiceUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.UpdateServiceUserWithResponse(ctx, c.Workspace,
+		serviceUserUUID.String(),
+		iam.IamServiceUser{
+			Name:        name,
+			Description: description,
+		})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) BulkAddServiceUsersToGroup(workspaceUUID, groupUUID uuid.UUID, serviceUserUUIDs []uuid.UUID) ([]*types.GroupServiceUser, error) {
-	return c.IAMClient.BulkAddServiceUsersToGroup(workspaceUUID, groupUUID, serviceUserUUIDs)
+func (c *Client) GetWorkspaceServiceUserTokenList(ctx context.Context, serviceUserUUID, workspaceUUID *uuid.UUID) (*[]iam.IamServiceUserToken, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUserTokensWithResponse(ctx, workspaceUUID.String(), serviceUserUUID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) UnbindServiceUserFromGroup(workspaceUUID, groupUUID, serviceUserUUID *uuid.UUID) error {
-	return c.IAMClient.UnbindServiceUserFromGroup(workspaceUUID, groupUUID, serviceUserUUID)
+func (c *Client) CreateServiceUserToken(ctx context.Context, serviceUserUUID *uuid.UUID, name string, expiresAt *time.Time) (*iam.IamServiceUserTokenWithSecret, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
+		iam.IamServiceUserTokenWithSecret{
+			Name:      name,
+			ExpiresAt: expiresAt,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetServiceUsers(workspaceUUID *uuid.UUID) ([]*types.ServiceUser, error) {
-	return c.IAMClient.GetServiceUsers(workspaceUUID)
+func (c *Client) DeleteServiceUserToken(ctx context.Context, serviceUserUUID, serviceUserTokenUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserTokenWithResponse(ctx, c.Workspace, serviceUserUUID.String(), serviceUserTokenUUID.String())
+	return err
 }
 
-func (c *Client) GetServiceUser(workspaceUUID, serviceUserUUID *uuid.UUID) (*types.ServiceUser, error) {
-	return c.IAMClient.GetServiceUser(workspaceUUID, serviceUserUUID)
+func (c *Client) GetWorkspaceServiceUserPublicKeyList(ctx context.Context, workspaceUUID, serviceUserUUID uuid.UUID) ([]iam.IamServiceUserPublicKey, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListServiceUserPublicKeysWithResponse(ctx,
+		workspaceUUID.String(),
+		serviceUserUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetWorkspaceServiceUserList(workspaceUUID uuid.UUID) ([]*types.ServiceUserWithCompactRole, error) {
-	return c.IAMClient.GetWorkspaceServiceUserList(workspaceUUID)
+func (c *Client) CreateServiceUserPublicKey(ctx context.Context, serviceUserUUID uuid.UUID, name, publicKey string) (*iam.IamServiceUserPublicKey, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateServiceUserPublicKeyWithResponse(ctx, c.Workspace, serviceUserUUID.String(),
+		iam.IamServiceUserPublicKeyCreate{
+			Key:   publicKey,
+			Title: name,
+		})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetWorkspaceServiceUserDetail(workspaceUUID, serviceUserUUID uuid.UUID) (*types.ServiceUserWithCompactRole, error) {
-	return c.IAMClient.GetWorkspaceServiceUserDetail(workspaceUUID, serviceUserUUID)
+func (c *Client) DeleteServiceUserPublicKey(ctx context.Context, serviceUserUUID, publicKeyUUID uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.DeleteServiceUserPublicKey(ctx, c.Workspace, serviceUserUUID.String(), publicKeyUUID.String())
+	return err
 }
 
-func (c *Client) CreateServiceUser(serviceUserName, description string, workspace *uuid.UUID) (*types.ServiceUser, error) {
-	return c.IAMClient.CreateServiceUser(serviceUserName, description, workspace)
+func (c *Client) UnbindRoleFromServiceUser(ctx context.Context, roleUUID, serviceUserUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromServiceUserWithResponse(ctx, c.Workspace, roleUUID.String(), serviceUserUUID.String())
+	return err
 }
 
-func (c *Client) DeleteServiceUser(workspaceUUID, serviceUserUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteServiceUser(workspaceUUID, serviceUserUUID)
+func (c *Client) GetRoleServiceUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamServiceUserWithRoleItems, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRolesServiceUsersWithResponse(ctx, c.Workspace, roleUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) UpdateServiceUser(workspaceUUID, serviceUserUUID uuid.UUID, name, description string) (*types.ServiceUser, error) {
-	return c.IAMClient.UpdateServiceUser(workspaceUUID, serviceUserUUID, name, description)
-}
+func (c *Client) BulkAddServiceUsersToRole(ctx context.Context, roleUUID uuid.UUID, serviceUserUUIDs []string) error {
+	_, err := c.sotoonSdk.Iam_v1.BulkAddServiceUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
+		iam.IamBulkAddServiceUsersToRoleRequest{
+			ServiceUsers: serviceUserUUIDs,
+		})
+	return err
 
-func (c *Client) GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID *uuid.UUID) (*[]types.ServiceUserToken, error) {
-	return c.IAMClient.GetWorkspaceServiceUserTokenList(serviceUserUUID, workspaceUUID)
-}
-
-func (c *Client) CreateServiceUserToken(serviceUserUUID, workspaceUUID *uuid.UUID, name string, expiresAt *time.Time) (*types.ServiceUserToken, error) {
-	return c.IAMClient.CreateServiceUserToken(serviceUserUUID, workspaceUUID, name, expiresAt)
-}
-
-func (c *Client) DeleteServiceUserToken(serviceUserUUID, workspaceUUID, serviceUserTokenUUID *uuid.UUID) error {
-	return c.IAMClient.DeleteServiceUserToken(serviceUserUUID, workspaceUUID, serviceUserTokenUUID)
-}
-
-func (c *Client) GetWorkspaceServiceUserPublicKeyList(workspaceUUID, serviceUserUUID uuid.UUID) ([]*types.ServiceUserPublicKey, error) {
-	return c.IAMClient.GetWorkspaceServiceUserPublicKeyList(workspaceUUID, serviceUserUUID)
-}
-
-func (c *Client) CreateServiceUserPublicKey(workspaceUUID, serviceUserUUID uuid.UUID, name, publicKey string) (*types.ServiceUserPublicKey, error) {
-	return c.IAMClient.CreateServiceUserPublicKey(workspaceUUID, serviceUserUUID, name, publicKey)
-}
-
-func (c *Client) DeleteServiceUserPublicKey(workspaceUUID, serviceUserUUID, publicKeyUUID uuid.UUID) error {
-	return c.IAMClient.DeleteServiceUserPublicKey(workspaceUUID, serviceUserUUID, publicKeyUUID)
-}
-
-func (c *Client) UnbindRoleFromServiceUser(workspaceUUID, roleUUID, serviceUserUUID *uuid.UUID, items map[string]string) error {
-	return c.IAMClient.UnbindRoleFromServiceUser(workspaceUUID, roleUUID, serviceUserUUID, items)
-}
-
-func (c *Client) GetRoleServiceUsers(roleUUID, workspaceUUID *uuid.UUID) ([]*types.ServiceUser, error) {
-	return c.IAMClient.GetRoleServiceUsers(roleUUID, workspaceUUID)
-}
-
-func (c *Client) BulkAddServiceUsersToRole(workspaceUUID, roleUUID uuid.UUID, serviceUserUUIDs []uuid.UUID) error {
-	return c.IAMClient.BulkAddServiceUsersToRole(workspaceUUID, roleUUID, serviceUserUUIDs)
 }
 
 // --- IAM Role Functions ---
 
-func (c *Client) GetWorkspaceRoles(ctx context.Context) ([]*types.Role, error) {
-	return c.IAMClient.GetWorkspaceRoles(c.WorkspaceUUID)
+func (c *Client) GetWorkspaceRoles(ctx context.Context, worksapceUUID string) ([]iam.IamRole, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRolesWithResponse(ctx, worksapceUUID, nil)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) CreateRole(ctx context.Context, name, description string) (*types.RoleWithCompactWorkspace, error) {
-	return c.IAMClient.CreateRole(name, description, c.WorkspaceUUID)
+func (c *Client) CreateRole(ctx context.Context, name, description string) (*iam.IamRole, error) {
+	res, err := c.sotoonSdk.Iam_v1.CreateRoleWithResponse(ctx, c.Workspace,
+		iam.IamCreateRole{
+			Name:          name,
+			DescriptionEn: description,
+		},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 201 {
+		return res.JSON201, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*types.RoleRes, error) {
-	return c.IAMClient.GetRole(roleUUID, c.WorkspaceUUID)
+func (c *Client) GetRole(ctx context.Context, roleUUID *uuid.UUID) (*iam.IamRole, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetRoleWithResponse(ctx, c.Workspace, roleUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) GetRoleByName(ctx context.Context, roleName string) (*types.RoleRes, error) {
-	return c.IAMClient.GetRoleByName(roleName, c.Workspace)
+func (c *Client) GetRoleByName(ctx context.Context, roleName string) (*iam.IamRole, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRolesWithResponse(ctx, c.Workspace, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode() == 200 {
+		for _, role := range *res.JSON200 {
+			if role.Name == roleName {
+				return &role, nil
+			}
+		}
+		return nil, ErrNotFound
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+
 }
 
 func (c *Client) DeleteRole(ctx context.Context, roleID string) error {
-	id, err := uuid.FromString(roleID)
+	_, err := c.sotoonSdk.Iam_v1.DeleteRoleWithResponse(ctx, c.Workspace, roleID)
+	return err
+}
+
+func (c *Client) BulkAddRulesToRole(ctx context.Context, roleUUID uuid.UUID, ruleUUIDs []string) error {
+	_, err := c.sotoonSdk.Iam_v1.BulkAddRulesToRoleWithResponse(
+		ctx, c.Workspace, roleUUID.String(),
+		iam.IamBulkAddRulesRequest{
+			RulesUuidList: ruleUUIDs,
+		})
+	return err
+}
+
+func (c *Client) GetRoleRules(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamRule, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRoleRulesWithResponse(ctx, c.Workspace, roleUUID.String())
 	if err != nil {
-		return fmt.Errorf("invalid role ID %q: %w", roleID, err)
+		return nil, err
 	}
-	return c.IAMClient.DeleteRole(&id, c.WorkspaceUUID)
-}
-
-func (c *Client) UpdateRole(ctx context.Context, roleUUID *uuid.UUID, name string) (*types.Role, error) {
-	return c.IAMClient.UpdateRole(roleUUID, name, c.WorkspaceUUID)
-}
-
-func (c *Client) BulkAddRulesToRole(ctx context.Context, roleUUID uuid.UUID, ruleUUIDs []uuid.UUID) error {
-	return c.IAMClient.BulkAddRulesToRole(*c.WorkspaceUUID, roleUUID, ruleUUIDs)
-}
-
-func (c *Client) GetRoleRules(ctx context.Context, roleUUID *uuid.UUID) ([]*types.Rule, error) {
-	return c.IAMClient.GetRoleRules(roleUUID, c.WorkspaceUUID)
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
 func (c *Client) UnbindRuleFromRole(ctx context.Context, roleUUID *uuid.UUID, ruleUUID *uuid.UUID) error {
-	return c.IAMClient.UnbindRuleFromRole(roleUUID, ruleUUID, c.WorkspaceUUID)
+	_, err := c.sotoonSdk.Iam_v1.RemoveRuleFromRoleWithResponse(ctx, c.Workspace, roleUUID.String(), ruleUUID.String())
+	return err
 }
 
-func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]*types.User, error) {
-	return c.IAMClient.GetRoleUsers(roleUUID, c.WorkspaceUUID)
+func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.IamUserWithRoleItems, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRoleUsersWithResponse(ctx, c.Workspace, roleUUID.String())
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }
 
-func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []uuid.UUID) error {
-	return c.IAMClient.BulkAddUsersToRole(*c.WorkspaceUUID, roleUUID, uuids)
+func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string) error {
+	_, err := c.sotoonSdk.Iam_v1.BulkAddUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
+		iam.IamBulkAddUsersToRoleRequest{
+			Users: uuids,
+		})
+	return err
 }
 
-func (c *Client) UnbindRoleFromUser(ctx context.Context, roleUUID *uuid.UUID, userUUID *uuid.UUID, items map[string]string) error {
-	return c.IAMClient.UnbindRoleFromUser(roleUUID, userUUID, c.WorkspaceUUID, items)
+func (c *Client) UnbindRoleFromUser(ctx context.Context, roleUUID *uuid.UUID, userUUID *uuid.UUID) error {
+	_, err := c.sotoonSdk.Iam_v1.RemoveRoleFromUser(ctx, c.Workspace, roleUUID.String(), userUUID.String())
+	return err
 }
 
 // --- IAM Rule Functions ---
 
-func (c *Client) GetWorkspaceRules(ctx context.Context) ([]*types.Rule, error) {
-	return c.IAMClient.GetWorkspaceRules(c.WorkspaceUUID)
-}
-
-func (c *Client) GetRule(ctx context.Context, ruleUUID *uuid.UUID) (*types.Rule, error) {
-	return c.IAMClient.GetRule(ruleUUID, c.WorkspaceUUID)
+func (c *Client) GetWorkspaceRules(ctx context.Context, workspace string) ([]iam.IamRule, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListRulesWithResponse(ctx, workspace)
+	if err != nil {
+		return nil, err
+	}
+	tflog.Info(ctx, "hmmmmmm", map[string]interface{}{"status": res.StatusCode()})
+	if res.StatusCode() == 200 {
+		return *res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
 }

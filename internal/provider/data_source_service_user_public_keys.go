@@ -40,18 +40,18 @@ func dataSourceServiceUserPublicKeysRead(ctx context.Context, d *schema.Resource
 		return diag.FromErr(err)
 	}
 
-	list, err := c.GetWorkspaceServiceUserPublicKeyList(*c.WorkspaceUUID, suID)
+	list, err := c.GetWorkspaceServiceUserPublicKeyList(ctx, *c.WorkspaceUUID, suID)
 	if err != nil {
 		return diag.FromErr(err)
 	}
 
 	out := make([]map[string]interface{}, 0, len(list))
 	for _, pk := range list {
-		if pk == nil || pk.UUID == nil {
+		if pk.Uuid == "" {
 			continue
 		}
 		out = append(out, map[string]interface{}{
-			"id":    pk.UUID.String(),
+			"id":    pk.Uuid,
 			"title": pk.Title,
 		})
 	}

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -51,22 +52,6 @@ func dataSourceGroupUserServices() *schema.Resource {
 							Type:     schema.TypeString,
 							Computed: true,
 						},
-						"roles": {
-							Type:     schema.TypeList,
-							Computed: true,
-							Elem: &schema.Resource{
-								Schema: map[string]*schema.Schema{
-									"id": {
-										Type:     schema.TypeString,
-										Computed: true,
-									},
-									"name": {
-										Type:     schema.TypeString,
-										Computed: true,
-									},
-								},
-							},
-						},
 					},
 				},
 			},
@@ -93,26 +78,14 @@ func dataSourceGroupUserServicesListRead(ctx context.Context, d *schema.Resource
 	d.SetId(groupUUID.String())
 	list := make([]map[string]interface{}, len(users))
 	for i, u := range users {
-		roleList := make([]map[string]interface{}, len(u.Roles))
-		for j, r := range u.Roles {
-			roleList[j] = map[string]interface{}{
-				"id":   r.UUID.String(),
-				"name": r.Name,
-			}
-		}
-		entry := map[string]interface{}{
-			"id":          u.UUID.String(),
+		list[i] = map[string]interface{}{
+			"id":          u.Uuid,
 			"name":        u.Name,
 			"description": u.Description,
-			"workspace":   "",
-			"created_at":  u.CreatedAt,
-			"updated_at":  u.UpdatedAt,
-			"roles":       roleList,
+			"workspace":   u.Workspace,
+			"created_at":  u.CreatedAt.Format(time.RFC3339),
+			"updated_at":  u.UpdatedAt.Format(time.RFC3339),
 		}
-		if u.Workspace != nil {
-			entry["workspace"] = u.Workspace.String()
-		}
-		list[i] = entry
 	}
 	if err := d.Set("service_users", list); err != nil {
 		return diag.FromErr(fmt.Errorf("failed to set service_users: %w", err))

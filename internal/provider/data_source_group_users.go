@@ -88,7 +88,7 @@ func dataSourceGroupUsersListRead(ctx context.Context, d *schema.ResourceData, m
 	userList := make([]map[string]interface{}, 0, len(users))
 	for _, user := range users {
 		userData := map[string]interface{}{
-			"id":    user.UUID.String(),
+			"id":    user.Uuid,
 			"name":  user.Name,
 			"email": user.Email,
 		}

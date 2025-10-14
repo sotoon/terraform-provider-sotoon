@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	uuid "github.com/satori/go.uuid"
-	"github.com/sotoon/iam-client/pkg/types"
+	iam "github.com/sotoon/sotoon-sdk-go/sdk/core/iam_v1"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
@@ -74,15 +74,7 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 	}
 	remoteRolesID := make([]string, 0, len(rolesList))
 	for _, r := range rolesList {
-		if r.UUID != nil {
-			remoteRolesID = append(remoteRolesID, r.UUID.String())
-			continue
-		}
-		if rr, ok := any(r).(interface{ GetRoleUUID() string }); ok {
-			if id := rr.GetRoleUUID(); id != "" {
-				remoteRolesID = append(remoteRolesID, id)
-			}
-		}
+		remoteRolesID = append(remoteRolesID, r.Uuid)
 	}
 	remoteRolesID = uniqueSorted(remoteRolesID)
 
@@ -95,12 +87,13 @@ func resourceGroupRoleCreate(ctx context.Context, d *schema.ResourceData, meta i
 
 	toAddList := diff(toSet(sortedRoleIds), toSet(remoteRolesID))
 	if len(toAddList) > 0 {
-		rolesWithItems := make([]types.RoleWithItems, 0, len(toAddList))
+		rolesWithItems := make([]iam.IamRoleItem, 0, len(toAddList))
 		for _, id := range toAddList {
-			roleUUID, _ := uuid.FromString(id)
-			rolesWithItems = append(rolesWithItems, types.RoleWithItems{RoleUUID: roleUUID.String(), Items: []map[string]string{items}})
+			rolesWithItems = append(rolesWithItems, iam.IamRoleItem{
+				RoleUuid:  id,
+				ItemsList: &[]map[string]string{items}})
 		}
-		if err := c.BulkAddRolesToGroup(c.WorkspaceUUID, &groupUUID, rolesWithItems); err != nil {
+		if err := c.BulkAddRolesToGroup(ctx, &groupUUID, rolesWithItems); err != nil {
 			return diag.Errorf("bulk bind roles to group %s failed: %s", groupUUID.String(), err)
 		}
 	}
@@ -133,14 +126,9 @@ func resourceGroupRoleRead(ctx context.Context, d *schema.ResourceData, meta int
 
 	remoteRoles := make([]string, 0, len(rolesList))
 	for _, r := range rolesList {
-		if r.UUID != nil {
-			remoteRoles = append(remoteRoles, r.UUID.String())
+		if r.Uuid != "" {
+			remoteRoles = append(remoteRoles, r.Uuid)
 			continue
-		}
-		if rr, ok := any(r).(interface{ GetRoleUUID() string }); ok {
-			if id := rr.GetRoleUUID(); id != "" {
-				remoteRoles = append(remoteRoles, id)
-			}
 		}
 	}
 	remoteRoles = uniqueSorted(remoteRoles)
@@ -181,7 +169,7 @@ func resourceGroupRoleDelete(ctx context.Context, d *schema.ResourceData, meta i
 			return diag.Errorf("invalid role_id in list: %s", err)
 		}
 
-		if err := c.UnbindRoleFromGroup(c.WorkspaceUUID, &u, &groupUUID, map[string]string{}); err != nil {
+		if err := c.UnbindRoleFromGroup(ctx, &u, &groupUUID); err != nil {
 			return diag.Errorf("unbind role %s from group %s failed: %s", u.String(), groupUUID.String(), err)
 		}
 	}
