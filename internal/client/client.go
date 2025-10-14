@@ -1,11 +1,9 @@
 package client
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -37,36 +35,36 @@ type Client struct {
 	sotoonSdk      *sdk.SDK
 }
 
-type logger struct {
-}
+// type logger struct {
+// }
 
-func (a *logger) BeforeRequest(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
-	var body []byte
-	if data.Request != nil && data.Request.Body != nil {
-		body, _ = io.ReadAll(data.Request.Body)
-		data.Request.Body = io.NopCloser(bytes.NewReader(body))
-	}
+// func (a *logger) BeforeRequest(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+// 	var body []byte
+// 	if data.Request != nil && data.Request.Body != nil {
+// 		body, _ = io.ReadAll(data.Request.Body)
+// 		data.Request.Body = io.NopCloser(bytes.NewReader(body))
+// 	}
 
-	tflog.Info(data.Ctx, "BeforeRequest", map[string]interface{}{
-		"id":     data.ID,
-		"method": data.Request.Method,
-		"url":    data.Request.URL,
-		"body":   string(body),
-	})
-	return data, nil
-}
+// 	tflog.Info(data.Ctx, "BeforeRequest", map[string]interface{}{
+// 		"id":     data.ID,
+// 		"method": data.Request.Method,
+// 		"url":    data.Request.URL,
+// 		"body":   string(body),
+// 	})
+// 	return data, nil
+// }
 
-func (a *logger) AfterResponse(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
-	body, _ := io.ReadAll(data.Response.Body)
-	tflog.Info(data.Ctx, "AfterResponse", map[string]interface{}{
-		"id":       data.ID,
-		"method":   data.Request.Method,
-		"url":      data.Request.URL,
-		"response": string(body),
-	})
-	data.Response.Body = io.NopCloser(bytes.NewReader(body))
-	return data, nil
-}
+// func (a *logger) AfterResponse(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+// 	body, _ := io.ReadAll(data.Response.Body)
+// 	tflog.Info(data.Ctx, "AfterResponse", map[string]interface{}{
+// 		"id":       data.ID,
+// 		"method":   data.Request.Method,
+// 		"url":      data.Request.URL,
+// 		"response": string(body),
+// 	})
+// 	data.Response.Body = io.NopCloser(bytes.NewReader(body))
+// 	return data, nil
+// }
 
 // NewClient creates a new unified API client for both Compute and IAM.
 func NewClient(host, token, workspace, userID string) (*Client, error) {
