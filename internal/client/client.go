@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -35,58 +37,61 @@ type Client struct {
 	sotoonSdk      *sdk.SDK
 }
 
-// type logger struct {
-// }
+type logger struct {
+}
 
-// func (a *logger) BeforeRequest(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
-// 	var body []byte
-// 	if data.Request != nil && data.Request.Body != nil {
-// 		body, _ = io.ReadAll(data.Request.Body)
-// 		data.Request.Body = io.NopCloser(bytes.NewReader(body))
-// 	}
+func (a *logger) BeforeRequest(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+	var body []byte
+	if data.Request != nil && data.Request.Body != nil {
+		body, _ = io.ReadAll(data.Request.Body)
+		data.Request.Body = io.NopCloser(bytes.NewReader(body))
+	}
 
-// 	tflog.Info(data.Ctx, "BeforeRequest", map[string]interface{}{
-// 		"id":     data.ID,
-// 		"method": data.Request.Method,
-// 		"url":    data.Request.URL,
-// 		"body":   string(body),
-// 	})
-// 	return data, nil
-// }
+	tflog.Info(data.Ctx, "BeforeRequest", map[string]interface{}{
+		"id":     data.ID,
+		"method": data.Request.Method,
+		"url":    data.Request.URL,
+		"body":   string(body),
+	})
+	return data, nil
+}
 
-// func (a *logger) AfterResponse(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
-// 	body, _ := io.ReadAll(data.Response.Body)
-// 	tflog.Info(data.Ctx, "AfterResponse", map[string]interface{}{
-// 		"id":       data.ID,
-// 		"method":   data.Request.Method,
-// 		"url":      data.Request.URL,
-// 		"response": string(body),
-// 	})
-// 	data.Response.Body = io.NopCloser(bytes.NewReader(body))
-// 	return data, nil
-// }
+func (a *logger) AfterResponse(data interceptors.InterceptorData) (interceptors.InterceptorData, error) {
+	body, _ := io.ReadAll(data.Response.Body)
+	tflog.Info(data.Ctx, "AfterResponse", map[string]interface{}{
+		"id":       data.ID,
+		"method":   data.Request.Method,
+		"url":      data.Request.URL,
+		"response": string(body),
+	})
+	data.Response.Body = io.NopCloser(bytes.NewReader(body))
+	return data, nil
+}
 
 // NewClient creates a new unified API client for both Compute and IAM.
-func NewClient(host, token, workspace, userID string) (*Client, error) {
+func NewClient(host, token, workspace, userID string, shouldLog bool) (*Client, error) {
 	if host == "" || token == "" || workspace == "" || userID == "" {
 		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
+	interceptorsArray := make([]interceptors.Interceptor, 0)
 
-	sotoonSdk, err := sdk.NewSDK(
-		token,
-		sdk.WithInterceptor(
-			//&logger{},
-			interceptors.NewTreatAsErrorInterceptor(
-				interceptors.NewTreatAsErrorInterceptor_ErrorDetectorAll(),
-			),
-			interceptors.NewCircuitBreakerInterceptor(interceptors.CircuteBreakerForJust429, false),
-			interceptors.NewRetryInterceptor(
-				interceptors.NewDefaultInterceptorTransport(token),
-				interceptors.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
-				interceptors.NewRetryInterceptor_RetryDeciderAll(15),
-			),
+	if shouldLog {
+		interceptorsArray = append(interceptorsArray, &logger{})
+	}
+
+	interceptorsArray = append(interceptorsArray,
+		interceptors.NewTreatAsErrorInterceptor(
+			interceptors.NewTreatAsErrorInterceptor_ErrorDetectorAll(),
+		),
+		interceptors.NewCircuitBreakerInterceptor(interceptors.CircuteBreakerForJust429, false),
+		interceptors.NewRetryInterceptor(
+			interceptors.NewDefaultInterceptorTransport(token),
+			interceptors.NewRetryInterceptor_ExponentialBackoff(time.Second, time.Second*10),
+			interceptors.NewRetryInterceptor_RetryDeciderAll(15),
 		),
 	)
+
+	sotoonSdk, err := sdk.NewSDK(token, sdk.WithInterceptor(interceptorsArray...))
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sotoon sdk: %w", err)

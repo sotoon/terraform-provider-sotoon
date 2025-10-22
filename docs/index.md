@@ -22,4 +22,5 @@ description: |-
 ### Optional
 
 - `api_host` (String) The Sotoon API host.
+- `should_log` (Boolean) indicates whether to log the requests and responses.
 - `user_id` (String) The Sotoon UserID.
