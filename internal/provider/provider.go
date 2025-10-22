@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
@@ -35,6 +36,12 @@ func Provider() *schema.Provider {
 				Optional:    true,
 				DefaultFunc: schema.EnvDefaultFunc("SOTOON_USER_ID", ""),
 				Description: "The Sotoon UserID.",
+			},
+			"should_log": {
+				Type:        schema.TypeBool,
+				Optional:    true,
+				DefaultFunc: schema.EnvDefaultFunc("SOTOON_SHOULD_LOG", false),
+				Description: "indicates whether to log the requests and responses.",
 			},
 		},
 		ResourcesMap: map[string]*schema.Resource{
@@ -79,6 +86,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 	workspaceID := d.Get("workspace_id").(string)
 	host := d.Get("api_host").(string)
 	userID := d.Get("user_id").(string)
+	shouldLog := d.Get("should_log").(bool)
 
 	var diags diag.Diagnostics
 
@@ -91,7 +99,7 @@ func providerConfigure(ctx context.Context, d *schema.ResourceData) (interface{}
 		return nil, diags
 	}
 
-	c, err := client.NewClient(host, token, workspaceID, userID)
+	c, err := client.NewClient(host, token, workspaceID, userID, shouldLog)
 	if err != nil {
 		diags = append(diags, diag.Diagnostic{
 			Severity: diag.Error,
