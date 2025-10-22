@@ -73,7 +73,7 @@ func NewClient(host, token, workspace, userID string, shouldLog bool) (*Client, 
 	if host == "" || token == "" || workspace == "" || userID == "" {
 		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
-	interceptorsArray := make([]interceptors.Interceptor, 0)
+	interceptorsArray := make([]interceptors.Interceptor, 0, 4)
 
 	if shouldLog {
 		interceptorsArray = append(interceptorsArray, &logger{})
