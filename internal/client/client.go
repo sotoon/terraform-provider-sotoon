@@ -73,6 +73,7 @@ func NewClient(host, token, workspace, userID string, shouldLog bool) (*Client, 
 	if host == "" || token == "" || workspace == "" || userID == "" {
 		return nil, fmt.Errorf("host, token, workspace, and userID must not be empty")
 	}
+
 	interceptorsArray := make([]interceptors.Interceptor, 0, 4)
 
 	if shouldLog {
@@ -625,11 +626,12 @@ func (c *Client) GetWorkspaceRoles(ctx context.Context, worksapceUUID string) ([
 	return nil, ErrNotFound
 }
 
-func (c *Client) CreateRole(ctx context.Context, name, description string) (*iam.IamRole, error) {
+func (c *Client) CreateRole(ctx context.Context, name, description string) (*iam.IamMinimalRoleWithTime, error) {
 	res, err := c.sotoonSdk.Iam_v1.CreateRoleWithResponse(ctx, c.Workspace,
 		iam.IamCreateRole{
 			Name:          name,
 			DescriptionEn: description,
+			Workspace:     c.Workspace,
 		},
 	)
 	if err != nil {
@@ -736,7 +738,6 @@ func (c *Client) GetWorkspaceRules(ctx context.Context, workspace string) ([]iam
 	if err != nil {
 		return nil, err
 	}
-	tflog.Info(ctx, "hmmmmmm", map[string]interface{}{"status": res.StatusCode()})
 	if res.StatusCode() == 200 {
 		return *res.JSON200, nil
 	}
