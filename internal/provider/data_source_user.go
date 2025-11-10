@@ -2,8 +2,6 @@ package provider
 
 import (
 	"context"
-	"fmt"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
@@ -12,87 +10,97 @@ import (
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
 
-func dataSourceUsers() *schema.Resource {
+func dataSourceUser() *schema.Resource {
 	return &schema.Resource{
-		Description: "Fetches a list of IAM users within a specific Sotoon workspace.",
-		ReadContext: dataSourceUsersRead,
+		Description: "Fetches a single IAM user within a specific Sotoon workspace.",
+		ReadContext: dataSourceUserRead,
 		Schema: map[string]*schema.Schema{
 			"workspace_id": {
 				Type:        schema.TypeString,
 				Required:    true,
 				Description: "The UUID of the workspace to fetch users from.",
 			},
-			"users": {
-				Type:        schema.TypeList,
+			"uuid": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "The UUID of the user to fetch.",
+				ExactlyOneOf: []string{"uuid", "email"},
+				Computed:     true,
+			},
+			"email": {
+				Type:         schema.TypeString,
+				Optional:     true,
+				Description:  "The email of the user to fetch.",
+				ExactlyOneOf: []string{"uuid", "email"},
+				Computed:     true,
+			},
+			"name": {
+				Type:        schema.TypeString,
 				Computed:    true,
-				Description: "A list of users found in the workspace.",
-				Elem: &schema.Resource{
-					Schema: map[string]*schema.Schema{
-						"id": {
-							Type:        schema.TypeString,
-							Computed:    true,
-							Description: "The unique identifier for the user.",
-						},
-						"email": {
-							Type:        schema.TypeString,
-							Computed:    true,
-							Description: "The email address of the user.",
-						},
-						"name": {
-							Type:        schema.TypeString,
-							Computed:    true,
-							Description: "The display name of the user.",
-						},
-						"is_suspended": {
-							Type:        schema.TypeBool,
-							Computed:    true,
-							Description: "Whether the user account is suspended.",
-						},
-					},
-				},
+				Description: "The display name of the user.",
+			},
+			"is_suspended": {
+				Type:        schema.TypeBool,
+				Computed:    true,
+				Description: "Whether the user account is suspended.",
 			},
 		},
 	}
 }
 
-func dataSourceUsersRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+func dataSourceUserRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	c := meta.(*client.Client)
 	workspaceID := d.Get("workspace_id").(string)
-
-	tflog.Debug(ctx, "Reading users for workspace", map[string]interface{}{"workspace_id": workspaceID})
 
 	workspaceUUID, err := uuid.FromString(workspaceID)
 	if err != nil {
 		return diag.Errorf("Invalid workspace_id format: not a valid UUID")
 	}
 
-	users, err := c.GetWorkspaceUsers(ctx, &workspaceUUID)
-	if err != nil {
-		if strings.Contains(strings.ToLower(err.Error()), "forbidden") {
-			return diag.Errorf(
-				"Forbidden: The API token does not have permissions to list users in this workspace. Please check the token's IAM roles. Original error: %s",
-				err,
-			)
+	tflog.Debug(ctx, "Reading users for workspace", map[string]interface{}{"workspace_id": workspaceID})
+
+	userData := make(map[string]interface{})
+
+	if uuid, uuidFound := d.GetOk("uuid"); uuidFound {
+		user, err := c.GetWorkspaceUserByUUID(ctx, &workspaceUUID, uuid.(string))
+		if err != nil {
+			return diag.FromErr(err)
 		}
+		userData = map[string]interface{}{
+			"uuid":         *user.Uuid,
+			"email":        *user.Email,
+			"name":         *user.Name,
+			"is_suspended": *user.IsSuspended,
+		}
+
+	}
+
+	if email, emailFound := d.GetOk("email"); emailFound {
+		user, err := c.GetWorkspaceUserByEmail(ctx, &workspaceUUID, email.(string))
+		if err != nil {
+			return diag.FromErr(err)
+		}
+		userData = map[string]interface{}{
+			"uuid":         user.Uuid,
+			"email":        user.Email,
+			"name":         user.Name,
+			"is_suspended": user.IsSuspended,
+		}
+	}
+
+	if err := d.Set("uuid", userData["uuid"]); err != nil {
 		return diag.FromErr(err)
 	}
-
-	userList := make([]map[string]interface{}, 0, len(users))
-	for _, user := range users {
-		userData := map[string]interface{}{
-			"id":    user.Uuid,
-			"email": user.Email,
-			"name":  user.Name,
-			// "is_suspended": user.IsSuspended,
-		}
-		userList = append(userList, userData)
+	if err := d.Set("email", userData["email"]); err != nil {
+		return diag.FromErr(err)
 	}
-
-	if err := d.Set("users", userList); err != nil {
-		return diag.FromErr(fmt.Errorf("failed to set users list: %w", err))
+	if err := d.Set("name", userData["name"]); err != nil {
+		return diag.FromErr(err)
 	}
-
-	d.SetId(workspaceID)
+	if err := d.Set("is_suspended", userData["is_suspended"]); err != nil {
+		return diag.FromErr(err)
+	}
+	d.SetId("user_" + userData["uuid"].(string)) 
 
 	return nil
 }
