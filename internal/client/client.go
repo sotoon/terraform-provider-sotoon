@@ -155,6 +155,33 @@ func (c *Client) GetWorkspaceUsers(ctx context.Context, workspaceID *uuid.UUID) 
 	return nil, ErrNotFound
 }
 
+func (c *Client) GetWorkspaceUserByUUID(ctx context.Context, workspaceID *uuid.UUID, userID string) (*iam.IamUserWorkspaceDetailedUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.GetDetailedWorkspaceUserWithResponse(ctx, workspaceID.String(), userID)
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		return res.JSON200, nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
+func (c *Client) GetWorkspaceUserByEmail(ctx context.Context, workspaceID *uuid.UUID, email string) (*iam.IamUser, error) {
+	res, err := c.sotoonSdk.Iam_v1.ListWorkspaceUsersWithResponse(ctx, workspaceID.String(), &iam.ListWorkspaceUsersParams{Email: &email})
+	if err != nil {
+		return nil, err
+	}
+	if res.StatusCode() == 200 {
+		if len(*res.JSON200) == 0 {
+			return nil, ErrNotFound
+		}
+		return &(*res.JSON200)[0], nil
+	}
+	tflog.Warn(ctx, "this should not happen", map[string]interface{}{"statusCode": res.StatusCode()})
+	return nil, ErrNotFound
+}
+
 func (c *Client) GetWorkspaceGroups(ctx context.Context, workspaceID *uuid.UUID) ([]iam.IamGroup, error) {
 	res, err := c.sotoonSdk.Iam_v1.ListGroupsWithResponse(ctx, workspaceID.String())
 	if err != nil {

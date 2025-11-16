@@ -61,6 +61,7 @@ func Provider() *schema.Provider {
 		},
 		DataSourcesMap: map[string]*schema.Resource{
 			"sotoon_iam_users":                    dataSourceUsers(),
+			"sotoon_iam_user":                     dataSourceUser(),
 			"sotoon_iam_groups":                   dataSourceGroups(),
 			"sotoon_iam_user_tokens":              dataSourceUserTokens(),
 			"sotoon_iam_user_public_keys":         dataSourceUserPublicKeys(),
