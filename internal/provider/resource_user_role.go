@@ -39,8 +39,14 @@ func resourceUserRole() *schema.Resource {
 				Elem: &schema.Schema{
 					Type: schema.TypeString,
 				},
-				Description: "Set of user UUIDs to bind to the role."},
-
+				Description: "Set of user UUIDs to bind to the role.",
+			},
+			"items": {
+				Type:        schema.TypeMap,
+				Optional:    true,
+				ForceNew:    true,
+				Description: "map of items related to this role.",
+			},
 			"bindings_hash": {
 				Type:        schema.TypeString,
 				Computed:    true,
@@ -73,7 +79,11 @@ func resourceUserRoleCreate(ctx context.Context, d *schema.ResourceData, meta in
 
 	toAddList := diff(toSet(sortedUserIds), toSet(remoteUsersID))
 	if len(toAddList) > 0 {
-		if err := c.BulkAddUsersToRole(ctx, roleUUID, toAddList); err != nil {
+		var itemsToAdd map[string]interface{}
+		if items, found := d.GetOk("items"); found {
+			itemsToAdd = items.(map[string]interface{})
+		}
+		if err := c.BulkAddUsersToRole(ctx, roleUUID, toAddList, itemsToAdd); err != nil {
 			return diag.Errorf("add users to role %s: %s", roleUUID, err)
 		}
 	}

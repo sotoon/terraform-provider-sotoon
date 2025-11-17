@@ -7,7 +7,7 @@ require (
 	github.com/hashicorp/terraform-plugin-log v0.9.0
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.37.0
 	github.com/satori/go.uuid v1.2.0
-	github.com/sotoon/sotoon-sdk-go v0.2.1
+	github.com/sotoon/sotoon-sdk-go v0.2.4
 )
 
 require github.com/patrickmn/go-cache v2.1.0+incompatible // indirect

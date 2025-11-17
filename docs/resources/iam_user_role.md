@@ -19,6 +19,10 @@ resource "sotoon_iam_user_role" "bind_user_to_role" {
   user_ids = [
     "44444444-4444-4444-4444-444444444444",
   ]
+  items = {
+    "key1" = "value1",
+    "key2" = "value2",
+  }
 }
 
 output "user_role_bind_id" {
@@ -33,6 +37,10 @@ output "user_role_bind_id" {
 
 - `role_id` (String) Role UUID.
 - `user_ids` (Set of String) Set of user UUIDs to bind to the role.
+
+### Optional
+
+- `items` (Map of String) map of items related to this role.
 
 ### Read-Only
 
