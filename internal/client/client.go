@@ -630,13 +630,22 @@ func (c *Client) GetRoleServiceUsers(ctx context.Context, roleUUID *uuid.UUID) (
 	return nil, ErrNotFound
 }
 
-func (c *Client) BulkAddServiceUsersToRole(ctx context.Context, roleUUID uuid.UUID, serviceUserUUIDs []string) error {
+func (c *Client) BulkAddServiceUsersToRole(ctx context.Context, roleUUID uuid.UUID, serviceUserUUIDs []string, items map[string]any) error {
+	var itemsString *[]map[string]string
+	if items != nil {
+		converted := convertMapAnyToString(items)
+		temp := make([]map[string]string, len(serviceUserUUIDs))
+		for index := range serviceUserUUIDs {
+			temp[index] = converted
+		}
+		itemsString = &temp
+	}
 	_, err := c.sotoonSdk.Iam_v1.BulkAddServiceUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
 		iam.IamBulkAddServiceUsersToRoleRequest{
 			ServiceUsers: serviceUserUUIDs,
+			Items:        itemsString,
 		})
 	return err
-
 }
 
 // --- IAM Role Functions ---
@@ -745,10 +754,30 @@ func (c *Client) GetRoleUsers(ctx context.Context, roleUUID *uuid.UUID) ([]iam.I
 	return nil, ErrNotFound
 }
 
-func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string) error {
+// convertMapAnyToString converts a map[string]any to map[string]string
+// by converting each value to its string representation using fmt.Sprintf
+func convertMapAnyToString(input map[string]any) map[string]string {
+	result := make(map[string]string, len(input))
+	for key, value := range input {
+		result[key] = fmt.Sprintf("%v", value)
+	}
+	return result
+}
+
+func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string, items map[string]any) error {
+	var itemsString *[]map[string]string
+	if items != nil {
+		converted := convertMapAnyToString(items)
+		temp := make([]map[string]string, len(uuids))
+		for index := range uuids {
+			temp[index] = converted
+		}
+		itemsString = &temp
+	}
 	_, err := c.sotoonSdk.Iam_v1.BulkAddUsersToRoleWithResponse(ctx, c.Workspace, roleUUID.String(),
 		iam.IamBulkAddUsersToRoleRequest{
 			Users: uuids,
+			Items: itemsString,
 		})
 	return err
 }

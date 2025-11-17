@@ -4,6 +4,10 @@ resource "sotoon_iam_user_role" "bind_user_to_role" {
   user_ids = [
     "44444444-4444-4444-4444-444444444444",
   ]
+  items = {
+    "key1" = "value1",
+    "key2" = "value2",
+  }
 }
 
 output "user_role_bind_id" {
