@@ -264,6 +264,17 @@ func (c *Client) DeleteGroup(ctx context.Context, groupID string) error {
 	return err
 }
 
+func (c *Client) RemoveUserFromWorkspace(ctx context.Context, userID string) error {
+	res, err := c.sotoonSdk.Iam_v1.RemoveUserFromWorkspaceWithResponse(ctx, c.Workspace, userID)
+	if err != nil {
+		return err
+	}
+	if res.StatusCode() < http.StatusOK || res.StatusCode() >= http.StatusMultipleChoices {
+		return fmt.Errorf("remove user %s from workspace %s: unexpected HTTP status %d", userID, c.Workspace, res.StatusCode())
+	}
+	return nil
+}
+
 // --- IAM User-Token Functions ---
 
 func (c *Client) CreateMyUserToken(ctx context.Context, name string, expiresAt *time.Time) (*iam.IamUserToken, error) {
@@ -764,13 +775,12 @@ func convertMapAnyToString(input map[string]any) map[string]string {
 	return result
 }
 
-func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string, items map[string]any) error {
+func (c *Client) BulkAddUsersToRole(ctx context.Context, roleUUID uuid.UUID, uuids []string, items map[string]string) error {
 	var itemsString *[]map[string]string
-	if items != nil {
-		converted := convertMapAnyToString(items)
+	if len(items) > 0 {
 		temp := make([]map[string]string, len(uuids))
 		for index := range uuids {
-			temp[index] = converted
+			temp[index] = items
 		}
 		itemsString = &temp
 	}

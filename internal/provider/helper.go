@@ -3,13 +3,17 @@ package provider
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	uuid "github.com/satori/go.uuid"
 )
+
+var roleBindingItemsMu sync.Mutex
 
 // create sorted and unique array of uuids
 func uniqueSorted(in []string) []string {
@@ -34,6 +38,75 @@ func uniqueSorted(in []string) []string {
 func hashOfIDs(ids []string) string {
 	h := sha256.Sum256([]byte(strings.Join(ids, ",")))
 	return hex.EncodeToString(h[:])
+}
+
+func hashOfBinding(ids []string, items map[string]string) string {
+	payload, _ := json.Marshal(struct {
+		IDs   []string          `json:"ids"`
+		Items map[string]string `json:"items"`
+	}{
+		IDs:   uniqueSorted(ids),
+		Items: items,
+	})
+	h := sha256.Sum256(payload)
+	return hex.EncodeToString(h[:])
+}
+
+func roleItemsFromResourceData(d *schema.ResourceData) map[string]string {
+	items := map[string]string{}
+	if raw, ok := d.GetOk("items"); ok {
+		for key, value := range raw.(map[string]interface{}) {
+			items[key] = fmt.Sprintf("%v", value)
+		}
+	}
+	return items
+}
+
+func roleItemsEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, value := range a {
+		if b[key] != value {
+			return false
+		}
+	}
+	return true
+}
+
+func roleBindingHasItems(bindingExists bool, remoteItems []map[string]string, wanted map[string]string) bool {
+	if !bindingExists {
+		return false
+	}
+	if len(wanted) == 0 && len(remoteItems) == 0 {
+		return true
+	}
+	for _, items := range remoteItems {
+		if roleItemsEqual(items, wanted) {
+			return true
+		}
+	}
+	return false
+}
+
+func removeRoleBindingItems(bindingExists bool, remoteItems []map[string]string, wanted map[string]string) ([]map[string]string, bool) {
+	if !bindingExists {
+		return remoteItems, false
+	}
+	if len(wanted) == 0 && len(remoteItems) == 0 {
+		return nil, true
+	}
+
+	remaining := make([]map[string]string, 0, len(remoteItems))
+	found := false
+	for _, items := range remoteItems {
+		if roleItemsEqual(items, wanted) {
+			found = true
+			continue
+		}
+		remaining = append(remaining, items)
+	}
+	return remaining, found
 }
 
 // read array of strings from schema
