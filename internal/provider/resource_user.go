@@ -6,8 +6,14 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	iam "github.com/sotoon/sotoon-sdk-go/sdk/core/iam_v1"
 	"github.com/sotoon/terraform-provider-sotoon/internal/client"
 )
+
+type userWorkspaceRemover interface {
+	GetUserByEmail(context.Context, string) (*iam.IamUser, error)
+	RemoveUserFromWorkspace(context.Context, string) error
+}
 
 // resourceUser defines the schema and CRUD functions for the sotoon_iam_user resource.
 func resourceUser() *schema.Resource {
@@ -51,7 +57,6 @@ func resourceUserCreate(ctx context.Context, d *schema.ResourceData, meta interf
 
 	_, err := c.GetUserByEmail(ctx, email)
 	if err != nil {
-		//
 		if errors.Is(err, client.ErrNotFound) {
 			_, inviteErr := c.InviteUser(ctx, email)
 			if inviteErr != nil {
@@ -92,8 +97,27 @@ func resourceUserRead(ctx context.Context, d *schema.ResourceData, meta interfac
 	return nil
 }
 
-// resourceUserDelete "disowns" the user from the state without deleting it from Sotoon.
 func resourceUserDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
+	return resourceUserDeleteWithClient(ctx, d, meta.(*client.Client))
+}
+
+func resourceUserDeleteWithClient(ctx context.Context, d *schema.ResourceData, c userWorkspaceRemover) diag.Diagnostics {
+	user, err := c.GetUserByEmail(ctx, d.Id())
+	if err != nil {
+		if errors.Is(err, client.ErrNotFound) {
+			d.SetId("")
+			return nil
+		}
+		return diag.Errorf("failed to look up user %q before removal: %s", d.Id(), err)
+	}
+
+	if user.Uuid == "" {
+		return diag.Errorf("cannot remove user %q from workspace: API returned an empty UUID", d.Id())
+	}
+	if err := c.RemoveUserFromWorkspace(ctx, user.Uuid); err != nil {
+		return diag.Errorf("failed to remove user %q from workspace: %s", d.Id(), err)
+	}
+
 	d.SetId("")
 	return nil
 }
